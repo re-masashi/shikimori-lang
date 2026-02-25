@@ -1,5 +1,6 @@
 #pragma once
 
+#include <filesystem>
 #include <memory>
 #include <optional>
 #include <string_view>
@@ -14,13 +15,16 @@ namespace shikimori {
 
 class Parser {
 public:
-  explicit Parser(std::string_view source);
-  explicit Parser(const std::vector<Token> &tokens, std::string_view source);
+  explicit Parser(std::string_view source,
+                  std::filesystem::path file = std::filesystem::path());
+  explicit Parser(const std::vector<Token> &tokens, std::string_view source,
+                  std::filesystem::path file = std::filesystem::path());
 
   std::optional<ast::Program> parse();
 
   void set_source(std::string_view source);
   void set_tokens(std::vector<Token> tokens);
+  void set_file(std::filesystem::path file);
 
   const Token &current() const;
   const Token &peek(size_t offset = 1) const;
@@ -125,6 +129,7 @@ public:
 
 private:
   std::string_view source;
+  std::filesystem::path file;
   std::vector<Token> tokens;
   size_t current_pos;
   std::vector<std::string> errors;

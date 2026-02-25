@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <filesystem>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -12,12 +14,15 @@ struct Token;
 struct Span {
   size_t start;
   size_t end;
+  std::filesystem::path file;
 
-  Span() : start(0), end(0) {}
-  Span(size_t s, size_t e) : start(s), end(e) {}
+  Span() : start(0), end(0), file("") {}
+  Span(size_t s, size_t e, std::filesystem::path f = "")
+      : start(s), end(e), file(std::move(f)) {}
 
   static Span merge(const Span &a, const Span &b) {
-    return Span(std::min(a.start, b.start), std::max(a.end, b.end));
+    return Span(std::min(a.start, b.start), std::max(a.end, b.end),
+                a.file.empty() ? b.file : a.file);
   }
 
   static Span from_token(const Token &token);
@@ -27,11 +32,15 @@ struct Span {
       return Span();
     size_t min_start = spans[0].start;
     size_t max_end = spans[0].end;
+    std::filesystem::path file = spans[0].file;
     for (const auto &s : spans) {
       min_start = std::min(min_start, s.start);
       max_end = std::max(max_end, s.end);
+      if (file.empty() && !s.file.empty()) {
+        file = s.file;
+      }
     }
-    return Span(min_start, max_end);
+    return Span(min_start, max_end, file);
   }
 };
 
