@@ -1,17 +1,17 @@
 use "stdlib/io"
 use "stdlib/mem" (Allocator as Alloc, free)
 
-extern c_malloc(usize) -> *u8;
-extern c_free(*u8);
-extern c_puts(*u8);
+extern c_malloc(usize) -> *u8
+extern c_free(*u8)
+extern c_puts(*u8)
 
 interface Printable {
-    fn print(self);
+    fn print(self)
 }
 
 interface Serializable {
-    fn serialize(self) -> []u8;
-    fn name(self) -> string;
+    fn serialize(self) -> []u8
+    fn name(self) -> string
 }
 
 // plain struct

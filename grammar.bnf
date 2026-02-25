@@ -38,7 +38,7 @@ variant_decl    ::= IDENT [ ":" type ] ","
 
 (* Interfaces *)
 interface_decl  ::= "interface" IDENT "{" { interface_method } "}"
-interface_method ::= "fn" IDENT "(" [ param_list ] ")" [ "->" type ] ";"
+interface_method ::= "fn" IDENT "(" [ param_list ] ")" [ "->" type ]
 
 (* Macros *)
 macro_decl      ::= "macro" IDENT "(" [ macro_param_list ] ")" block

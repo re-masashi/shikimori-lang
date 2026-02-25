@@ -3,12 +3,18 @@ if [[ $1 == "fmt" ]]; then
   exit
 fi
 
+if [[ $1 == "lint" ]]; then
+  cmake -S . -B build -G Ninja -DCMAKE_CXX_CLANG_TIDY="clang-tidy;--quiet" && cmake --build build
+  exit
+fi
+
 if [[ $1 == "help" || $1 == "-h" || $1 == "--help" ]]; then
   echo "Usage: ./build.sh [task] args"
   echo "tasks:
   run [filename]
   clean
   fmt
+  lint
   "
   echo "if no args are provided, the project just compiles"
   exit
@@ -18,7 +24,7 @@ if [[ $1 == "clean" ]]; then
   rm -rf build
 fi
 
-cmake -S . -B build -G Ninja && cmake --build build
+cmake -S . -B build -G Ninja -DCMAKE_CXX_CLANG_TIDY="" && cmake --build build
 
 if [[ $? -ne 0 ]]; then
   echo "Build failed"
