@@ -1,0 +1,83 @@
+// libc bindings
+extern c_malloc(usize) -> *u8
+extern c_free(*u8)
+extern c_puts(*u8)
+extern c_strlen(*u8) -> usize
+extern c_memcpy(*u8, *u8, usize) -> *u8
+extern c_memset(*u8, i32, usize) -> *u8
+extern c_open(*u8, i32) -> i32
+extern c_read(i32, *u8, usize) -> i64
+extern c_write(i32, *u8, usize) -> i64
+extern c_close(i32) -> i32
+
+// Wrap a raw C string into a slice
+fn str_from_cstr(ptr: *u8) -> []u8 {
+    let len = c_strlen(ptr);
+    // In a real impl: return a fat pointer { ptr, len }
+    // For now just placeholder
+    return ptr;
+}
+
+// Simple string builder on top of raw memory
+struct Builder {
+    buf:  *u8,
+    len:  usize,
+    cap:  usize,
+
+    fn new(cap: usize) -> Builder {
+        return Builder {
+            buf: c_malloc(cap),
+            len: 0,
+            cap: cap,
+        };
+    }
+
+    fn free(self) {
+        c_free(self.buf);
+    }
+
+    fn append(self, data: *u8, n: usize) -> bool {
+        if self.len + n > self.cap { return false; }
+        c_memcpy(self.buf + self.len, data, n);
+        self.len = self.len + n;
+        return true;
+    }
+
+    fn clear(self) {
+        c_memset(self.buf, 0, self.len);
+        self.len = 0;
+    }
+
+    fn as_ptr(self) -> *u8 {
+        return self.buf;
+    }
+}
+
+// Read a whole file into a Builder
+fn read_file(path: *u8, out: *Builder) -> bool {
+    let fd = c_open(path, 0);   // O_RDONLY = 0
+    if fd < 0 { return false; }
+    defer c_close(fd);
+
+    let tmp: [4096]u8 = [4096]u8 {};
+    loop {
+        let n = c_read(fd, &tmp, 4096);
+        if n <= 0 { break; }
+        if !out.append(&tmp, n) { return false; }
+    }
+
+    return true;
+}
+
+fn main() {
+    let b = Builder::new(1024 * 64);
+    defer b.free();
+
+    let ok = read_file("/etc/hostname", &b);
+
+    if ok {
+        c_write(1, b.as_ptr(), b.len);   // write to stdout
+    } else {
+        c_puts("failed to read file");
+    }
+}

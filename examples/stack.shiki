@@ -1,0 +1,70 @@
+// Generic stack backed by a fixed-size array
+
+extern c_malloc(usize) -> *u8
+extern c_free(*u8)
+extern c_puts(*u8)
+
+struct Stack[T] {
+    data: *T,
+    top:  usize,
+    cap:  usize,
+
+    fn new(cap: usize) -> Stack[T] {
+        let data = c_malloc(cap * @sizeof(T));
+        return Stack[T] { data: data, top: 0, cap: cap, };
+    }
+
+    fn free(self) {
+        c_free(self.data);
+    }
+
+    fn push(self, val: T) -> bool {
+        if self.top >= self.cap {
+            return false;
+        }
+        self.data#[self.top] = val;
+        self.top = self.top + 1;
+        return true;
+    }
+
+    fn pop(self) -> ?T {
+        if self.top == 0 {
+            return Option::none;
+        }
+        self.top = self.top - 1;
+        return Option::some(self.data#[self.top]);
+    }
+
+    fn peek(self) -> ?T {
+        if self.top == 0 {
+            return Option::none;
+        }
+        return Option::some(self.data#[self.top - 1]);
+    }
+
+    fn is_empty(self) -> bool {
+        return self.top == 0;
+    }
+
+    fn len(self) -> usize {
+        return self.top;
+    }
+}
+
+fn main() {
+    let s = Stack[i32]::new(16);
+    defer s.free();
+
+    s.push(10);
+    s.push(20);
+    s.push(30);
+
+    // pop all
+    while !s.is_empty() {
+        let val = s.pop();
+        match val {
+            some(v) => { c_puts("popped"); },
+            none    => { },
+        }
+    }
+}

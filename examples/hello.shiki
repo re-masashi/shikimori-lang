@@ -1,0 +1,5 @@
+extern c_puts(*u8)
+
+fn main() {
+    c_puts("Hello, world!");
+}

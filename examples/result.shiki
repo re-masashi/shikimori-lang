@@ -1,0 +1,65 @@
+// Error handling via Result union (stdlib pattern)
+// No special syntax. Just a tagged union
+
+extern c_puts(*u8)
+extern c_malloc(usize) -> *u8
+extern c_free(*u8)
+
+union Result[T, E] {
+    ok:  T,
+    err: E,
+
+    fn is_ok(self)  -> bool { return match self { ok(v)  => { true  }, _ => { false }, }; }
+    fn is_err(self) -> bool { return match self { err(e) => { true  }, _ => { false }, }; }
+}
+
+union ParseError {
+    empty_input,
+    invalid_char: u8,
+    overflow,
+}
+
+// Parse a non-negative integer from a string
+fn parse_u64(s: string) -> Result[u64, ParseError] {
+    if s.len == 0 {
+        return Result::err(ParseError::empty_input);
+    }
+
+    let result: u64 = 0;
+    let i = 0;
+
+    while i < s.len {
+        let ch = s.ptr#[i];
+
+        if ch < 48 || ch > 57 {   // '0' = 48, '9' = 57
+            return Result::err(Result::invalid_char(ch));
+        }
+
+        let digit: u64 = ch - 48;
+
+        // overflow check
+        if result > (18446744073709551615 - digit) / 10 {
+            return Result::err(ParseError::overflow);
+        }
+
+        result = result * 10 + digit;
+        i = i + 1;
+    }
+
+    return Result::ok(result);
+}
+
+fn main() {
+    let r = parse_u64("12345");
+
+    match r {
+        ok(n)  => { c_puts("parsed ok"); },
+        err(e) => {
+            match e {
+                empty_input    => { c_puts("empty input"); },
+                invalid_char(c) => { c_puts("bad char"); },
+                overflow       => { c_puts("overflow"); },
+            }
+        },
+    }
+}

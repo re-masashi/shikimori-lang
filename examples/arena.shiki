@@ -1,0 +1,79 @@
+// Manual memory management. Arena allocator
+
+extern c_malloc(usize) -> *u8
+extern c_free(*u8)
+extern c_puts(*u8)
+
+struct Arena {
+    buf:  *u8,
+    cap:  usize,
+    used: usize,
+
+    fn new(cap: usize) -> Arena {
+        return Arena {
+            buf:  c_malloc(cap),
+            cap:  cap,
+            used: 0,
+        };
+    }
+
+    fn alloc(self, size: usize) -> *u8 {
+        // align to 8 bytes
+        let aligned = (self.used + 7) & ~7;
+
+        if aligned + size > self.cap {
+            return null;   // out of memory
+        }
+
+        let ptr = self.buf + aligned;
+        self.used = aligned + size;
+        return ptr;
+    }
+
+    // Free everything at once. O(1)
+    fn reset(self) {
+        self.used = 0;
+    }
+
+    fn free(self) {
+        c_free(self.buf);
+    }
+}
+
+struct Player {
+    health: i32,
+    score:  i32,
+    level:  i32,
+}
+
+fn spawn_player(arena: *Arena, health: i32) -> *Player {
+    let ptr = arena.alloc(@sizeof(Player));
+    if ptr == null { return null; }
+
+    let p: *Player = ptr;
+    p.health = health;
+    p.score  = 0;
+    p.level  = 1;
+    return p;
+}
+
+fn main() {
+    let arena = Arena::new(1024 * 64);  // 64kb
+    defer arena.free();
+
+    let p1 = spawn_player(&arena, 100);
+    let p2 = spawn_player(&arena, 80);
+
+    if p1 == null || p2 == null {
+        c_puts("OOM");
+        return;
+    }
+
+    p1.score = p1.score + 500;
+    p2.health = p2.health - 20;
+
+    c_puts("done");
+
+    // All memory freed at once via defer arena.free()
+    // No per-object free needed
+}

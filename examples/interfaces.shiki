@@ -1,0 +1,68 @@
+// Interfaces. Runtime polymorphism via fat pointers
+
+extern c_puts(*u8)
+
+interface Shape {
+    fn area(self) -> f64
+    fn name(self) -> string
+}
+
+struct Circle {
+    radius: f64,
+
+    fn new(r: f64) -> Circle {
+        return Circle { radius: r, };
+    }
+
+    fn area(self) -> f64 {
+        // pi * r^2  (using 3.14159 as comptime constant)
+        comptime let PI = 3.14159;
+        return PI * self.radius * self.radius;
+    }
+
+    fn name(self) -> string {
+        return "circle";
+    }
+}
+
+struct Rect {
+    width:  f64,
+    height: f64,
+
+    fn new(w: f64, h: f64) -> Rect {
+        return Rect { width: w, height: h, };
+    }
+
+    fn area(self) -> f64 {
+        return self.width * self.height;
+    }
+
+    fn name(self) -> string {
+        return "rect";
+    }
+}
+
+// Takes any Shape via fat pointer. Dynamic dispatch
+fn print_shape(s: interface Shape) {
+    c_puts(s.name());
+    // area would be used in real output
+    let a = s.area();
+}
+
+// Generic version. Monomorphized, static dispatch
+fn largest[S](a: S, b: S) -> f64 where S: interface Shape {
+    let aa = a.area();
+    let bb = b.area();
+    return if aa > bb { aa } else { bb };
+}
+
+fn main() {
+    let c = Circle::new(5.0);
+    let r = Rect::new(3.0, 4.0);
+
+    print_shape(c);
+    print_shape(r);
+
+    let big = largest[Circle](c, Circle::new(2.0));
+    c_puts("done");
+}

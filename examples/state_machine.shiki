@@ -1,0 +1,110 @@
+// State machine. A simple lexer for integers and identifiers
+// Shows unions as state, match as the dispatch mechanism
+
+extern c_puts(*u8)
+
+union State {
+    start,
+    in_number,
+    in_ident,
+    done,
+    error: u8,   // the bad character
+}
+
+union Token {
+    number: i64,
+    ident:  []u8,
+    eof,
+    invalid: u8,
+}
+
+struct Lexer {
+    src: []u8,
+    pos: usize,
+
+    fn new(src: []u8) -> Lexer {
+        return Lexer { src: src, pos: 0, };
+    }
+
+    fn peek(self) -> ?u8 {
+        if self.pos >= self.src.len {
+            return Option::none;
+        }
+        return Option::some(self.src.ptr#[self.pos]);
+    }
+
+    fn advance(self) -> ?u8 {
+        let ch = self.peek();
+        match ch {
+            some(c) => { self.pos = self.pos + 1; },
+            none    => { },
+        }
+        return ch;
+    }
+
+    fn next_token(self) -> Token {
+        // skip whitespace
+        loop {
+            let ch = self.peek();
+            match ch {
+                some(c) => {
+                    if c == 32 || c == 9 || c == 10 {  // space, tab, newline
+                        self.advance();
+                    } else {
+                        break;
+                    }
+                },
+                none => { break; },
+            }
+        }
+
+        let first = self.advance();
+
+        return match first {
+            none    => { Token::eof },
+            some(c) => {
+                if c >= 48 && c <= 57 {
+                    // digit. Read whole number
+                    let n: i64 = c - 48;
+                    loop {
+                        let nxt = self.peek();
+                        match nxt {
+                            some(d) => {
+                                if d >= 48 && d <= 57 {
+                                    self.advance();
+                                    n = n * 10 + (d - 48);
+                                } else {
+                                    break;
+                                }
+                            },
+                            none => { break; },
+                        }
+                    }
+                    Token::number(n)
+                } else if (c >= 65 && c <= 90) || (c >= 97 && c <= 122) || c == 95 {
+                    // letter or underscore. Read whole identifier
+                    // (would return slice in real impl)
+                    Token::ident(self.src)
+                } else {
+                    Token::invalid(c)
+                }
+            },
+        };
+    }
+}
+
+fn main() {
+    // Placeholder. Src would be a real string slice
+    let src: []u8 = null;
+    let lex = Lexer::new(src);
+
+    loop {
+        let tok = lex.next_token();
+        match tok {
+            eof         => { break; },
+            number(n)   => { c_puts("number"); },
+            ident(s)    => { c_puts("ident"); },
+            invalid(c)  => { c_puts("invalid"); break; },
+        }
+    }
+}

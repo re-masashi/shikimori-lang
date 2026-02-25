@@ -1,0 +1,59 @@
+// Comptime reflection @fields, @sizeof, comptime for
+
+extern c_puts(*u8)
+
+struct Vec3 {
+    x: f32,
+    y: f32,
+    z: f32,
+
+    fn new(x: f32, y: f32, z: f32) -> Vec3 {
+        return Vec3 { x: x, y: y, z: z, };
+    }
+
+    fn dot(self, other: Vec3) -> f32 {
+        return self.x * other.x + self.y * other.y + self.z * other.z;
+    }
+
+    fn len_sq(self) -> f32 {
+        return self.dot(self);
+    }
+}
+
+// Print the name and byte offset of every field at comptime
+fn inspect[T]() {
+    comptime for field in @fields(T) {
+        c_puts(field.name);
+        // field.offset is available at comptime too
+    }
+}
+
+// Zero-initialize every field of a struct by iterating fields at comptime
+fn zero[T](val: *T) {
+    comptime for field in @fields(T) {
+        // @field gives mutable access by name
+        @field(val, field.name) = 0;
+    }
+}
+
+// Generic min that works on any numeric type via comptime typeid dispatch
+fn min[T](a: T, b: T) -> T {
+    return if a < b { a } else { b };
+}
+
+// Size assertions baked in at compile time
+comptime let VEC3_SIZE = @sizeof(Vec3);
+comptime let EXPECTED  = @sizeof(f32) * 3;
+
+fn main() {
+    inspect[Vec3]();
+
+    let v = Vec3::new(1.0, 2.0, 3.0);
+    let u = Vec3::new(4.0, 5.0, 6.0);
+    let d = v.dot(u);
+
+    let small = min[i32](10, 20);
+    let also  = min[f64](3.14, 2.71);
+
+    c_puts("done");
+}

@@ -1,0 +1,35 @@
+// Fibonacci. Recursive and iterative
+
+extern c_puts(*u8)
+
+// Recursive
+fn fib_recursive(n: i64) -> i64 {
+    if n <= 1 {
+        return n;
+    }
+    return fib_recursive(n - 1) + fib_recursive(n - 2);
+}
+
+// Iterative
+fn fib_iter(n: i64) -> i64 {
+    if n <= 1 { return n; }
+
+    let a = 0;
+    let b = 1;
+    let i = 2;
+
+    while i <= n {
+        let tmp = a + b;
+        a = b;
+        b = tmp;
+        i = i + 1;
+    }
+
+    return b;
+}
+
+fn main() {
+    let n = 10;
+    let result = fib_iter(n);
+    c_puts("done");
+}

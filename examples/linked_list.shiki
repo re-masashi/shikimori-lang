@@ -1,0 +1,71 @@
+// Singly linked list with a custom allocator
+
+extern c_malloc(usize) -> *u8
+extern c_free(*u8)
+
+struct Allocator {
+    alloc: *u8,   // fn ptr placeholder
+    free:  *u8,
+}
+
+union Node[T] {
+    cons: NodeData[T],
+    nil,
+}
+
+struct NodeData[T] {
+    value: T,
+    next:  *Node[T],
+}
+
+struct List[T] {
+    head: *Node[T],
+    len:  usize,
+
+    fn new() -> List[T] {
+        return List[T] { head: null, len: 0, };
+    }
+
+    fn push(self, val: T) {
+        let node = c_malloc(@sizeof(Node[T]));
+        let data = NodeData[T] { value: val, next: self.head, };
+        self.head = node;
+        self.len = self.len + 1;
+    }
+
+    fn pop(self) -> ?T {
+        if self.head == null {
+            return Option::none;
+        }
+
+        let result = match *self.head {
+            cons(data) => { data.value },
+            nil        => { return Option::none; },
+        };
+
+        let old = self.head;
+        // self.head = old->next  (would need proper deref in real use)
+        self.len = self.len - 1;
+        c_free(old);
+
+        return Option::some(result);
+    }
+
+    fn is_empty(self) -> bool {
+        return self.len == 0;
+    }
+}
+
+fn main() {
+    let list = List[i32]::new();
+
+    list.push(1);
+    list.push(2);
+    list.push(3);
+
+    let val = list.pop();
+    match val {
+        some(v) => { /* got v */ },
+        none    => { /* empty */ },
+    }
+}
