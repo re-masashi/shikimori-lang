@@ -109,7 +109,7 @@ public:
   std::optional<Spanned<ast::Expr>> parse_if_expr();
   std::optional<Spanned<ast::Expr>> parse_match_expr();
   std::optional<Spanned<ast::Expr>> parse_struct_init();
-  std::optional<Spanned<ast::Expr>> parse_union_init();
+  std::optional<Spanned<ast::Expr>> parse_scope_access();
   std::optional<Spanned<ast::Expr>> parse_comptime_expr();
   std::optional<Spanned<ast::Expr>> parse_builtin_call();
   std::optional<Spanned<ast::Expr>> parse_break_expr();

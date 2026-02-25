@@ -116,7 +116,7 @@ postfix_op      ::= "." IDENT                          (* field access *)
 primary         ::= literal
                   | range_expr
                   | struct_init
-                  | union_init
+                  | scope_access
                   | if_expr
                   | match_expr
                   | IDENT
@@ -143,7 +143,7 @@ arg_list        ::= expr { "," expr }
 
 struct_init     ::= IDENT [ "[" type { "," type } "]" ] "{" { field_init } "}"
 field_init      ::= IDENT ":" expr ","
-union_init      ::= IDENT "." IDENT [ "(" expr ")" ]
+scope_access    ::= IDENT "::" IDENT [ "(" [ arg_list ] ")" ]
 
 (* Comptime expressions *)
 comptime_expr   ::= "comptime" expr

@@ -1,4 +1,5 @@
 #include "ast_printer.h"
+#include "ast.h"
 #include "color.hpp"
 #include <format>
 
@@ -198,15 +199,26 @@ static void dump_expr(const ast::Expr &expr, std::ostream &os) {
             indent_level--;
           }
           indent_level--;
-        } else if constexpr (std::is_same_v<T, ast::UnionInit>) {
+        } else if constexpr (std::is_same_v<T, ast::ScopeAccess>) {
           indent(os);
-          os << Color::MAGENTA << "UnionInit" << Color::RESET << " "
-             << arg.union_name << "." << arg.variant_name;
+          os << Color::MAGENTA << "ScopeAccess" << Color::RESET << " "
+             << arg.scope << "::" << arg.member;
+          if (!arg.generic_args.empty()) {
+            os << "[";
+            for (size_t i = 0; i < arg.generic_args.size(); i++) {
+              if (i > 0)
+                os << ", ";
+              dump_type(*arg.generic_args[i], os);
+            }
+            os << "]";
+          }
           print_span(os, arg.span);
           os << "\n";
-          if (arg.payload) {
+          if (!arg.payload.empty()) {
             indent_level++;
-            dump_expr(**arg.payload, os);
+            for (auto &p : arg.payload) {
+              dump_expr(*p, os);
+            }
             indent_level--;
           }
         } else if constexpr (std::is_same_v<T, ast::FieldAccess>) {

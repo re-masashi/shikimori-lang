@@ -153,7 +153,7 @@ fn demo_statements(alloc: Alloc) -> i32 {
     let sign: i32 = if x > 0 { 1 } else if x == 0 { 0 } else { -1 };
 
     // match_expr as statement
-    let shape = Shape.circle(3.14);
+    let shape = Shape::circle(3.14);
     match shape {
         circle(r)    => { c_puts("circle"); },
         rectangle(p) => { c_puts("rect"); },
@@ -282,14 +282,14 @@ fn demo_expressions() {
     let pair = Pair[i32, f32] { first: 1, second: 2.0, };
 
     // union_init with payload
-    let s = Shape.circle(3.14);
+    let s = Shape::circle(3.14);
 
     // union_init unit variant
-    let nothing = Shape.nothing;
+    let nothing = Shape::nothing;
 
     // optional
-    let maybe = Option[i32].some(99);
-    let empty  = Option[i32].none;
+    let maybe = Option[i32]::some(99);
+    let empty  = Option[i32]::none;
 
     // field access
     let px = pt.x;
@@ -299,7 +299,7 @@ fn demo_expressions() {
     pt.scale(2.0);
 
     // static call
-    let pt2 = Point.new(3.0, 4.0);
+    let pt2 = Point::new(3.0, 4.0);
 
     // index access
     let arr: [4]i32 = [4]i32 {};

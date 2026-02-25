@@ -1,5 +1,4 @@
 #include "parser.h"
-#include <format>
 
 namespace shikimori {
 
@@ -514,10 +513,46 @@ std::optional<Spanned<ast::Expr>> Parser::parse_primary() {
     }
   }
 
-  // Identifier-based: could be plain ident, generic ident, or struct init
+  // Identifier-based: could be plain ident, generic ident, struct init, or
+  // scope access
   if (check(TokenType::IDENT)) {
     auto name_tok = current();
     advance();
+
+    // Check for scope access: IDENT :: IDENT [(expr)]
+    if (check(TokenType::DOUBLE_COLON)) {
+      advance(); // consume '::'
+      auto member_tok = consume(TokenType::IDENT, "scope member name");
+      if (has_errors())
+        return std::nullopt;
+
+      ast::ScopeAccess sa;
+      sa.scope = name_tok.lexeme;
+      sa.member = member_tok.lexeme;
+      sa.span = get_span_for(start);
+
+      // Check for payload: (expr, expr, ...)
+      if (match(TokenType::LPAREN)) {
+        std::vector<std::unique_ptr<ast::Expr>> args;
+        if (!check(TokenType::RPAREN)) {
+          do {
+            auto arg = parse_expression();
+            if (!arg)
+              return std::nullopt;
+            args.push_back(std::make_unique<ast::Expr>(std::move(arg->value)));
+          } while (match(TokenType::COMMA));
+        }
+        consume(TokenType::RPAREN, "')'");
+        if (has_errors())
+          return std::nullopt;
+        sa.payload = std::move(args);
+      }
+
+      ast::Expr expr;
+      expr.span = sa.span;
+      expr.value = std::move(sa);
+      return Spanned<ast::Expr>(std::move(expr), expr.span);
+    }
 
     // Check for generic instantiation: IDENT [ types ]
     if (check(TokenType::LBRACKET)) {
@@ -576,6 +611,43 @@ std::optional<Spanned<ast::Expr>> Parser::parse_primary() {
         ast::Expr expr;
         expr.span = si.span;
         expr.value = std::move(si);
+        return Spanned<ast::Expr>(std::move(expr), expr.span);
+      }
+
+      // Check for scope access on generic: IDENT [types] :: IDENT [(expr)]
+      if (check(TokenType::DOUBLE_COLON)) {
+        advance(); // consume '::'
+        auto member_tok = consume(TokenType::IDENT, "scope member name");
+        if (has_errors())
+          return std::nullopt;
+
+        ast::ScopeAccess sa;
+        sa.scope = name_tok.lexeme;
+        sa.member = member_tok.lexeme;
+        sa.generic_args = std::move(type_args);
+        sa.span = get_span_for(start);
+
+        // Check for payload: (expr, expr, ...)
+        if (match(TokenType::LPAREN)) {
+          std::vector<std::unique_ptr<ast::Expr>> args;
+          if (!check(TokenType::RPAREN)) {
+            do {
+              auto arg = parse_expression();
+              if (!arg)
+                return std::nullopt;
+              args.push_back(
+                  std::make_unique<ast::Expr>(std::move(arg->value)));
+            } while (match(TokenType::COMMA));
+          }
+          consume(TokenType::RPAREN, "')'");
+          if (has_errors())
+            return std::nullopt;
+          sa.payload = std::move(args);
+        }
+
+        ast::Expr expr;
+        expr.span = sa.span;
+        expr.value = std::move(sa);
         return Spanned<ast::Expr>(std::move(expr), expr.span);
       }
 
@@ -1043,10 +1115,8 @@ std::optional<Spanned<ast::Expr>> Parser::parse_struct_init() {
   return std::nullopt;
 }
 
-std::optional<Spanned<ast::Expr>> Parser::parse_union_init() {
+std::optional<Spanned<ast::Expr>> Parser::parse_scope_access() {
   // Union init is handled by postfix (field access / method call)
-  report_error_at_current(
-      "internal: parse_union_init should not be called directly");
   return std::nullopt;
 }
 

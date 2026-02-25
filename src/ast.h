@@ -172,11 +172,12 @@ struct StructInit {
   std::vector<std::pair<Identifier, std::unique_ptr<Expr>>> fields;
 };
 
-struct UnionInit {
+struct ScopeAccess {
   Span span;
-  Identifier union_name;
-  Identifier variant_name;
-  std::optional<std::unique_ptr<Expr>> payload;
+  Identifier scope;
+  Identifier member;
+  std::vector<std::unique_ptr<TypeAnnot>> generic_args;
+  std::vector<std::unique_ptr<Expr>> payload;
 };
 
 struct FieldAccess {
@@ -287,10 +288,10 @@ struct TypeInit {
 struct Expr {
   Span span;
   std::variant<IntLiteral, FloatLiteral, BoolLiteral, StringLiteral,
-               NullLiteral, IdentifierExpr, GenericIdent, StructInit, UnionInit,
-               FieldAccess, MethodCall, IndexAccess, Call, UnaryExpr,
-               BinaryExpr, Assignment, IfExpr, MatchExpr, Break, Continue,
-               ComptimeExpr, BuiltinCall, RangeExpr, TypeInit>
+               NullLiteral, IdentifierExpr, GenericIdent, StructInit,
+               ScopeAccess, FieldAccess, MethodCall, IndexAccess, Call,
+               UnaryExpr, BinaryExpr, Assignment, IfExpr, MatchExpr, Break,
+               Continue, ComptimeExpr, BuiltinCall, RangeExpr, TypeInit>
       value;
 };
 
