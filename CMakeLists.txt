@@ -25,6 +25,7 @@ add_executable(shikimori
   src/main.cpp
   src/tokenizer.cpp
   src/parser.cpp
+  src/span.cpp
 )
 
 target_include_directories(shikimori PRIVATE
