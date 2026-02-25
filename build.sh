@@ -20,6 +20,11 @@ fi
 
 cmake -S . -B build -G Ninja && cmake --build build
 
+if [[ $? -ne 0 ]]; then
+  echo "Build failed"
+  exit 1
+fi
+
 if [[ $1 == "run" ]]; then
   ./build/shikimori $2
 fi

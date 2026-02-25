@@ -1,266 +1,39 @@
 #include "tokenizer.hpp"
+#include "color.hpp"
 #include <cctype>
 #include <unordered_map>
+
+#define DUMP_SIMPLE(tkn)                                                       \
+  case TokenType::tkn: {                                                       \
+    os << Color::CYAN << #tkn << Color::RESET;                                 \
+    break;                                                                     \
+  }
+
+#define DUMP_VALUED(tkn)                                                       \
+  case TokenType::tkn: {                                                       \
+    if (type == TokenType::ERROR)                                              \
+      os << Color::RED << #tkn;                                                \
+    else if (type == TokenType::INT_LIT || type == TokenType::FLOAT_LIT)       \
+      os << Color::YELLOW << #tkn;                                             \
+    else                                                                       \
+      os << Color::GREEN << #tkn;                                              \
+    os << "(" << lexeme << ")" << Color::RESET;                                \
+    break;                                                                     \
+  }
+
+#define MAP(f, ...) EVAL(MAP1(f, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
 
 namespace shikimori {
 
 void Token::dump(std::ostream &os) const {
   os << "Token: ";
   switch (type) {
-  case TokenType::INT_LIT:
-    os << "INT_LIT(" << lexeme << ")";
-    break;
-  case TokenType::FLOAT_LIT:
-    os << "FLOAT_LIT(" << lexeme << ")";
-    break;
-  case TokenType::STRING_LIT:
-    os << "STRING_LIT(\"" << lexeme << "\")";
-    break;
-  case TokenType::BOOL_LIT:
-    os << "BOOL_LIT(" << lexeme << ")";
-    break;
-  case TokenType::IDENT:
-    os << "IDENT(" << lexeme << ")";
-    break;
-  case TokenType::KW_FN:
-    os << "KW_FN";
-    break;
-  case TokenType::KW_STRUCT:
-    os << "KW_STRUCT";
-    break;
-  case TokenType::KW_UNION:
-    os << "KW_UNION";
-    break;
-  case TokenType::KW_INTERFACE:
-    os << "KW_INTERFACE";
-    break;
-  case TokenType::KW_EXTERN:
-    os << "KW_EXTERN";
-    break;
-  case TokenType::KW_USE:
-    os << "KW_USE";
-    break;
-  case TokenType::KW_WHERE:
-    os << "KW_USE";
-    break;
-
-  case TokenType::KW_MACRO:
-    os << "KW_MACRO";
-    break;
-  case TokenType::KW_LET:
-    os << "KW_LET";
-    break;
-  case TokenType::KW_RETURN:
-    os << "KW_RETURN";
-    break;
-  case TokenType::KW_DEFER:
-    os << "KW_DEFER";
-    break;
-  case TokenType::KW_IF:
-    os << "KW_IF";
-    break;
-  case TokenType::KW_ELSE:
-    os << "KW_ELSE";
-    break;
-  case TokenType::KW_MATCH:
-    os << "KW_MATCH";
-    break;
-  case TokenType::KW_LOOP:
-    os << "KW_LOOP";
-    break;
-  case TokenType::KW_WHILE:
-    os << "KW_WHILE";
-    break;
-  case TokenType::KW_FOR:
-    os << "KW_FOR";
-    break;
-  case TokenType::KW_IN:
-    os << "KW_IN";
-    break;
-  case TokenType::KW_COMPTIME:
-    os << "KW_COMPTIME";
-    break;
-  case TokenType::KW_AS:
-    os << "KW_AS";
-    break;
-  case TokenType::KW_BREAK:
-    os << "KW_BREAK";
-    break;
-  case TokenType::KW_CONTINUE:
-    os << "KW_CONTINUE";
-    break;
-  case TokenType::KW_NULL:
-    os << "KW_NULL";
-    break;
-  case TokenType::KW_TRUE:
-    os << "KW_TRUE";
-    break;
-  case TokenType::KW_FALSE:
-    os << "KW_FALSE";
-    break;
-  case TokenType::KW_IMPL:
-    os << "KW_IMPL";
-    break;
-  case TokenType::KW_I8:
-    os << "KW_I8";
-    break;
-  case TokenType::KW_I16:
-    os << "KW_I16";
-    break;
-  case TokenType::KW_I32:
-    os << "KW_I32";
-    break;
-  case TokenType::KW_I64:
-    os << "KW_I64";
-    break;
-  case TokenType::KW_U8:
-    os << "KW_U8";
-    break;
-  case TokenType::KW_U16:
-    os << "KW_U16";
-    break;
-  case TokenType::KW_U32:
-    os << "KW_U32";
-    break;
-  case TokenType::KW_U64:
-    os << "KW_U64";
-    break;
-  case TokenType::KW_F32:
-    os << "KW_F32";
-    break;
-  case TokenType::KW_F64:
-    os << "KW_F64";
-    break;
-  case TokenType::KW_BOOL:
-    os << "KW_BOOL";
-    break;
-  case TokenType::KW_USIZE:
-    os << "KW_USIZE";
-    break;
-  case TokenType::KW_STRING:
-    os << "KW_STRING";
-    break;
-  case TokenType::LPAREN:
-    os << "LPAREN";
-    break;
-  case TokenType::RPAREN:
-    os << "RPAREN";
-    break;
-  case TokenType::LBRACE:
-    os << "LBRACE";
-    break;
-  case TokenType::RBRACE:
-    os << "RBRACE";
-    break;
-  case TokenType::LBRACKET:
-    os << "LBRACKET";
-    break;
-  case TokenType::RBRACKET:
-    os << "RBRACKET";
-    break;
-  case TokenType::COMMA:
-    os << "COMMA";
-    break;
-  case TokenType::SEMICOLON:
-    os << "SEMICOLON";
-    break;
-  case TokenType::COLON:
-    os << "COLON";
-    break;
-  case TokenType::DOT:
-    os << "DOT";
-    break;
-  case TokenType::QUESTION:
-    os << "QUESTION";
-    break;
-  case TokenType::TILDE:
-    os << "TILDE";
-    break;
-  case TokenType::AT:
-    os << "AT";
-    break;
-  case TokenType::ARROW:
-    os << "ARROW";
-    break;
-  case TokenType::DOUBLE_COLON:
-    os << "DOUBLE_COLON";
-    break;
-  case TokenType::HASH_BRACK:
-    os << "HASH_BRACK";
-    break;
-  case TokenType::PLUS:
-    os << "PLUS";
-    break;
-  case TokenType::MINUS:
-    os << "MINUS";
-    break;
-  case TokenType::STAR:
-    os << "STAR";
-    break;
-  case TokenType::SLASH:
-    os << "SLASH";
-    break;
-  case TokenType::PERCENT:
-    os << "PERCENT";
-    break;
-  case TokenType::EQ:
-    os << "EQ";
-    break;
-  case TokenType::NEQ:
-    os << "NEQ";
-    break;
-  case TokenType::LT:
-    os << "LT";
-    break;
-  case TokenType::GT:
-    os << "GT";
-    break;
-  case TokenType::LTE:
-    os << "LTE";
-    break;
-  case TokenType::GTE:
-    os << "GTE";
-    break;
-  case TokenType::AND:
-    os << "AND";
-    break;
-  case TokenType::OR:
-    os << "OR";
-    break;
-  case TokenType::NOT:
-    os << "NOT";
-    break;
-  case TokenType::BIT_AND:
-    os << "BIT_AND";
-    break;
-  case TokenType::BIT_OR:
-    os << "BIT_OR";
-    break;
-  case TokenType::BIT_XOR:
-    os << "BIT_XOR";
-    break;
-  case TokenType::LSHIFT:
-    os << "LSHIFT";
-    break;
-  case TokenType::RSHIFT:
-    os << "RSHIFT";
-    break;
-  case TokenType::ASSIGN:
-    os << "ASSIGN";
-    break;
-  case TokenType::UNDERSCORE:
-    os << "UNDERSCORE";
-    break;
-  case TokenType::EOF_TOKEN:
-    os << "EOF";
-    break;
-  case TokenType::ERROR:
-    os << "ERROR(" << lexeme << ")";
-    break;
+    MAP(DUMP_SIMPLE, TOKEN_TYPES_SIMPLE)
+    MAP(DUMP_VALUED, TOKEN_TYPES_VALUED)
   default:
-    os << "UNKNOWN";
+    os << Color::RED << "UNKNOWN" << Color::RESET;
   }
-  os << " SPAN " << start << ".." << end << "\n";
+  os << Color::GRAY << " SPAN " << start << ".." << end << Color::RESET << "\n";
 }
 
 Tokenizer::Tokenizer(std::string_view source)

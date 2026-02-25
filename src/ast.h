@@ -3,9 +3,6 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
-#include <string_view>
-#include <utility>
-#include <variant>
 #include <vector>
 
 namespace shikimori::ast {
@@ -62,35 +59,35 @@ enum class PrimitiveType {
   String,
 };
 
-struct PointerType {
+struct PointerTypeAnnot {
   std::unique_ptr<TypeAnnot> inner;
 };
 
-struct SliceType {
+struct SliceTypeAnnot {
   std::unique_ptr<TypeAnnot> inner;
 };
 
-struct ArrayType {
+struct ArrayTypeAnnot {
   std::unique_ptr<Expr> size;
   std::unique_ptr<TypeAnnot> inner;
 };
 
-struct OptionalType {
+struct OptionalTypeAnnot {
   std::unique_ptr<TypeAnnot> inner;
 };
 
-struct InterfaceType {
+struct InterfaceTypeAnnot {
   std::vector<Identifier> names;
 };
 
-struct NamedType {
+struct NamedTypeAnnot {
   Identifier name;
   std::vector<std::unique_ptr<TypeAnnot>> generic_args;
 };
 
 struct TypeAnnot {
-  std::variant<PrimitiveType, PointerType, SliceType, ArrayType, OptionalType,
-               InterfaceType, NamedType>
+  std::variant<PrimitiveType, PointerTypeAnnot, SliceTypeAnnot, ArrayTypeAnnot,
+               OptionalTypeAnnot, InterfaceTypeAnnot, NamedTypeAnnot>
       value;
 };
 
@@ -305,7 +302,7 @@ struct GenericParam {
 
 struct WhereConstraint {
   Identifier name;
-  InterfaceType iface;
+  InterfaceTypeAnnot iface;
 };
 
 struct FnDecl {
