@@ -1,0 +1,177 @@
+(* Top Level *)
+program         ::= { top_level }
+top_level       ::= fn_decl
+                  | struct_decl
+                  | union_decl
+                  | interface_decl
+                  | extern_decl
+                  | use_decl
+                  | macro_decl
+
+(* Imports *)
+use_decl        ::= "use" STRING_LIT [ "(" import_list ")" ]
+import_list     ::= import_item { "," import_item }
+import_item     ::= IDENT [ "as" IDENT ]
+
+(* Extern *)
+extern_decl     ::= "extern" IDENT "(" [ extern_params ] ")" [ "->" type ] ";"
+extern_params   ::= type { "," type }
+
+(* Functions *)
+fn_decl         ::= "fn" IDENT [ generic_params ] "(" [ param_list ] ")" [ "->" type ] [ where_clause ] block
+param_list      ::= param { "," param }
+param           ::= IDENT ":" type
+
+generic_params  ::= "[" IDENT { "," IDENT } "]"
+where_clause    ::= "where" where_constraint { "," where_constraint }
+where_constraint ::= IDENT ":" interface_type
+
+(* Structs *)
+struct_decl     ::= "struct" IDENT [ generic_params ] "{" { struct_member } "}"
+struct_member   ::= field_decl | fn_decl
+field_decl      ::= IDENT ":" type ","
+
+(* Unions *)
+union_decl      ::= "union" IDENT [ generic_params ] "{" { union_member } "}"
+union_member    ::= variant_decl | fn_decl
+variant_decl    ::= IDENT [ ":" type ] ","
+
+(* Interfaces *)
+interface_decl  ::= "interface" IDENT "{" { interface_method } "}"
+interface_method ::= "fn" IDENT "(" [ param_list ] ")" [ "->" type ] ";"
+
+(* Macros *)
+macro_decl      ::= "macro" IDENT "(" [ macro_param_list ] ")" block
+macro_param_list ::= macro_param { "," macro_param }
+macro_param     ::= IDENT ":" macro_kind
+macro_kind      ::= "expr" | "stmt" | "type" | "ident"
+
+(* Types *)
+type            ::= primitive_type
+                  | "*" type                           (* pointer *)
+                  | "[" "]" type                       (* slice *)
+                  | "[" expr "]" type                  (* fixed array *)
+                  | "?" type                           (* optional *)
+                  | interface_type
+                  | named_type
+
+primitive_type  ::= "i8" | "i16" | "i32" | "i64"
+                  | "u8" | "u16" | "u32" | "u64"
+                  | "f32" | "f64"
+                  | "bool" | "usize" | "string"
+
+interface_type  ::= "interface" IDENT { "+" IDENT }
+named_type      ::= IDENT [ "[" type { "," type } "]" ]    (* generic instantiation *)
+
+(* Statements *)
+block           ::= "{" { stmt } "}"
+stmt            ::= let_stmt
+                  | return_stmt
+                  | defer_stmt
+                  | loop_stmt
+                  | while_stmt
+                  | for_stmt
+                  | comptime_stmt
+                  | expr_stmt        (* if_expr, match_expr, calls, assignments all land here *)
+
+let_stmt        ::= "let" IDENT [ ":" type ] "=" expr ";"
+return_stmt     ::= "return" [ expr ] ";"
+defer_stmt      ::= "defer" ( expr_stmt | block )
+expr_stmt       ::= expr ";"
+                  (* if and match used as statements are just expr_stmt with value discarded *)
+
+loop_stmt       ::= [ label ] "loop" block
+while_stmt      ::= [ label ] "while" expr block
+for_stmt        ::= [ label ] "for" IDENT "in" expr block
+label           ::= ":" IDENT
+
+(* Comptime *)
+comptime_stmt   ::= "comptime" ( let_stmt | for_stmt | expr_stmt )
+
+(* Expressions. Precedence lowest to highest *)
+expr            ::= assignment
+assignment      ::= logical_or [ "=" expr ]
+logical_or      ::= logical_and { "||" logical_and }
+logical_and     ::= bitwise_or { "&&" bitwise_or }
+bitwise_or      ::= bitwise_xor { "|" bitwise_xor }
+bitwise_xor     ::= bitwise_and { "^" bitwise_and }
+bitwise_and     ::= equality { "&" equality }
+equality        ::= comparison { ( "==" | "!=" ) comparison }
+comparison      ::= shift { ( "<" | ">" | "<=" | ">=" ) shift }
+shift           ::= additive { ( "<<" | ">>" ) additive }
+additive        ::= multiplicative { ( "+" | "-" ) multiplicative }
+multiplicative  ::= unary { ( "*" | "/" | "%" ) unary }
+unary           ::= "!" unary    (* logical not *)
+                  | "-" unary    (* negate *)
+                  | "*" unary    (* deref *)
+                  | "&" unary    (* address-of *)
+                  | "~" unary    (* bitwise not *)
+                  | postfix
+postfix         ::= primary { postfix_op }
+postfix_op      ::= "." IDENT                          (* field access *)
+                  | "." IDENT "(" [ arg_list ] ")"    (* method call *)
+                  | "#[" expr "]"                      (* index *)
+                  | "(" [ arg_list ] ")"               (* call *)
+
+primary         ::= literal
+                  | range_expr
+                  | struct_init
+                  | union_init
+                  | if_expr
+                  | match_expr
+                  | IDENT
+                  | IDENT "[" type { "," type } "]"   (* generic instantiation *)
+                  | comptime_expr
+                  | builtin_call
+                  | "(" expr ")"
+                  | "break" [ ":" IDENT ] [ expr ]
+                  | "continue" [ ":" IDENT ]
+
+range_expr      ::= expr ".." expr        (* lower inclusive, upper exclusive *)
+                  | expr "..=" expr       (* lower inclusive, upper inclusive *)
+
+if_expr         ::= "if" expr block { "else if" expr block } [ "else" block ]
+
+match_expr      ::= "match" expr "{" { match_arm } "}"
+match_arm       ::= pattern "=>" block ","
+pattern         ::= IDENT "(" IDENT ")"     (* variant with binding *)
+                  | IDENT                   (* unit variant or wildcard *)
+                  | literal                 (* literal match *)
+                  | "_"                     (* wildcard *)
+
+arg_list        ::= expr { "," expr }
+
+struct_init     ::= IDENT [ "[" type { "," type } "]" ] "{" { field_init } "}"
+field_init      ::= IDENT ":" expr ","
+union_init      ::= IDENT "." IDENT [ "(" expr ")" ]
+
+(* Comptime expressions *)
+comptime_expr   ::= "comptime" expr
+builtin_call    ::= "@" IDENT "(" [ arg_list ] ")"
+
+(* Literals *)
+literal         ::= INT_LIT | FLOAT_LIT | BOOL_LIT | STRING_LIT | "null"
+BOOL_LIT        ::= "true" | "false"
+
+(* Lexer tokens *)
+INT_LIT         ::= DEC_LIT | BIN_LIT | HEX_LIT | OCT_LIT
+DEC_LIT         ::= DIGIT { DIGIT | "_" }
+BIN_LIT         ::= "0b" BIN_DIGIT { BIN_DIGIT | "_" }
+HEX_LIT         ::= "0x" HEX_DIGIT { HEX_DIGIT | "_" }
+OCT_LIT         ::= "0o" OCT_DIGIT { OCT_DIGIT | "_" }
+
+FLOAT_LIT       ::= DIGIT { DIGIT } "." { DIGIT } [ ( "e" | "E" ) [ "+" | "-" ] DIGIT { DIGIT } ]
+
+STRING_LIT      ::= '"' { CHAR | ESCAPE } '"'
+ESCAPE          ::= "\\" ( "n" | "t" | "r" | "\\" | '"' | "0" | "x" HEX_DIGIT HEX_DIGIT )
+
+IDENT           ::= ( ALPHA | "_" ) { ALPHA | DIGIT | "_" }
+
+DIGIT           ::= "0".."9"
+BIN_DIGIT       ::= "0" | "1"
+OCT_DIGIT       ::= "0".."7"
+HEX_DIGIT       ::= "0".."9" | "a".."f" | "A".."F"
+ALPHA           ::= "a".."z" | "A".."Z"
+
+(* Underscores allowed as digit separators: 1_000_000, 0xFF_AA_BB, 0b1010_0101 *)
+
