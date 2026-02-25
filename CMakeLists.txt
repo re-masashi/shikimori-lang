@@ -22,8 +22,9 @@ else()
 endif()
 
 add_executable(shikimori
-    src/main.cpp
-    src/tokenizer.cpp
+  src/main.cpp
+  src/tokenizer.cpp
+  src/parser.cpp
 )
 
 target_include_directories(shikimori PRIVATE
