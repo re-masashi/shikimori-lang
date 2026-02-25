@@ -83,6 +83,16 @@ std::optional<ast::Decl> Parser::parse_declaration() {
     decl.value = std::move(*m);
     return decl;
   }
+  if (check(TokenType::KW_COMPTIME)) {
+    auto cs_stmt = parse_comptime_stmt();
+    if (!cs_stmt)
+      return std::nullopt;
+    decl.span = cs_stmt->span;
+    // Extract ComptimeStmt from the Stmt variant
+    decl.value.emplace<ast::ComptimeStmt>(
+        std::move(std::get<ast::ComptimeStmt>(cs_stmt->value.value)));
+    return decl;
+  }
 
   return std::nullopt;
 }

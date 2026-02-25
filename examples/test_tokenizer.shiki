@@ -53,7 +53,7 @@ struct Generic[T, U] {
     second: U,
 }
 
-fn polymorphic[T](value: T) -> T where T: Drawable {
+fn polymorphic[T](value: T) -> T where T: interface Drawable {
     return value;
 }
 

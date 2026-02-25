@@ -15,7 +15,7 @@ for file in "${files[@]}"; do
         passed=$((passed + 1))
     else
         error=$(./build.sh run "$file" 2>&1)
-        echo -e "${RED}[error] $filename. ${NC}"
+        echo -e "${RED}[error] $filename ${NC}"
         echo "$error"
         failed+=("$filename")
     fi

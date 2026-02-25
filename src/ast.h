@@ -463,7 +463,7 @@ struct MacroDecl {
 struct Decl {
   Span span;
   std::variant<FnDecl, StructDecl, UnionDecl, InterfaceDecl, ExternDecl,
-               UseDecl, MacroDecl>
+               UseDecl, MacroDecl, ComptimeStmt>
       value;
 };
 

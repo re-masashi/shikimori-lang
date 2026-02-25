@@ -112,6 +112,9 @@ postfix_op      ::= "." IDENT                          (* field access *)
                   | "." IDENT "(" [ arg_list ] ")"    (* method call *)
                   | "#[" expr "]"                      (* index *)
                   | "(" [ arg_list ] ")"               (* call *)
+                  | "!" "(" [ macro_arg_list ] ")"   (* macro call *)
+
+macro_arg_list ::= expr { "," expr }
 
 primary         ::= literal
                   | range_expr

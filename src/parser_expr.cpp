@@ -960,17 +960,8 @@ std::optional<Spanned<ast::Expr>> Parser::parse_builtin_call() {
   bc.name = name_tok.lexeme;
 
   if (!check(TokenType::RPAREN)) {
-    // Parse arguments - can be types or expressions
-    // Builtins like @sizeof(i32) take types, @field(pt, "x") takes expr+string
-    // We'll parse them all as expressions; type keywords will be parsed as
-    // idents Actually, @sizeof(i32) -- i32 is a type keyword, not an
-    // expression. Let me handle this: try to parse as expression, which will
-    // handle idents. For type keywords like i32, they won't parse as
-    // expressions... Special case: if current is a primitive type keyword, wrap
-    // in an ident expr.
     while (!check(TokenType::RPAREN) && !is_at_end()) {
-      if (is_primitive_keyword(current().type) || check(TokenType::IDENT)) {
-        // Could be a type name used as a builtin arg
+      if (is_primitive_keyword(current().type)) {
         auto tok = current();
         advance();
         ast::IdentifierExpr ident;
