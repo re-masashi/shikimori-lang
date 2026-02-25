@@ -30,6 +30,10 @@ add_executable(shikimori
   src/main.cpp
   src/tokenizer.cpp
   src/parser.cpp
+  src/parser_decl.cpp
+  src/parser_stmt.cpp
+  src/parser_expr.cpp
+  src/ast_printer.cpp
   src/span.cpp
 )
 

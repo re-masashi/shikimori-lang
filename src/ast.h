@@ -245,6 +245,13 @@ struct BuiltinCall {
   std::vector<std::unique_ptr<Expr>> args;
 };
 
+struct RangeExpr {
+  Span span;
+  std::unique_ptr<Expr> start;
+  std::unique_ptr<Expr> end;
+  bool inclusive; // true for ..=, false for ..
+};
+
 struct IfBranch {
   Span span;
   std::unique_ptr<Expr> condition;
@@ -258,7 +265,7 @@ struct IfExpr {
 };
 
 // match as expression
-// typechecker enforces: if used as value → all arms same type
+// typechecker enforces: if used as value -> all arms same type
 struct MatchArm {
   Span span;
   Pattern pattern;
@@ -271,13 +278,19 @@ struct MatchExpr {
   std::vector<MatchArm> arms;
 };
 
+struct TypeInit {
+  Span span;
+  std::unique_ptr<TypeAnnot> type;
+  std::vector<std::pair<Identifier, std::unique_ptr<Expr>>> fields;
+};
+
 struct Expr {
   Span span;
   std::variant<IntLiteral, FloatLiteral, BoolLiteral, StringLiteral,
                NullLiteral, IdentifierExpr, GenericIdent, StructInit, UnionInit,
                FieldAccess, MethodCall, IndexAccess, Call, UnaryExpr,
                BinaryExpr, Assignment, IfExpr, MatchExpr, Break, Continue,
-               ComptimeExpr, BuiltinCall>
+               ComptimeExpr, BuiltinCall, RangeExpr, TypeInit>
       value;
 };
 

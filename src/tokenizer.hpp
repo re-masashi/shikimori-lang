@@ -14,10 +14,10 @@
       KW_BREAK, KW_CONTINUE, KW_NULL, KW_TRUE, KW_FALSE, KW_I8, KW_I16,        \
       KW_I32, KW_I64, KW_U8, KW_U16, KW_U32, KW_U64, KW_F32, KW_F64, KW_BOOL,  \
       KW_USIZE, KW_STRING, LPAREN, RPAREN, LBRACE, RBRACE, LBRACKET, RBRACKET, \
-      COMMA, SEMICOLON, COLON, DOT, QUESTION, TILDE, AT, ARROW, FAT_ARROW,     \
-      DOUBLE_COLON, HASH_BRACK, PLUS, MINUS, STAR, SLASH, PERCENT, EQ, NEQ,    \
-      LT, GT, LTE, GTE, AND, OR, NOT, BIT_AND, BIT_OR, BIT_XOR, LSHIFT,        \
-      RSHIFT, ASSIGN, UNDERSCORE, EOF_TOKEN
+      COMMA, SEMICOLON, COLON, DOT, DOT_DOT, DOT_DOT_EQ, QUESTION, TILDE, AT,  \
+      ARROW, FAT_ARROW, DOUBLE_COLON, HASH_BRACK, PLUS, MINUS, STAR, SLASH,    \
+      PERCENT, EQ, NEQ, LT, GT, LTE, GTE, AND, OR, NOT, BIT_AND, BIT_OR,       \
+      BIT_XOR, LSHIFT, RSHIFT, ASSIGN, UNDERSCORE, EOF_TOKEN
 
 #define TOKEN_TYPES_VALUED                                                     \
   INT_LIT, FLOAT_LIT, STRING_LIT, BOOL_LIT, IDENT, ERROR
@@ -101,19 +101,21 @@ enum class TokenType {
   KW_STRING,
 
   // Single character operators and punctuation
-  LPAREN,    // (
-  RPAREN,    // )
-  LBRACE,    // {
-  RBRACE,    // }
-  LBRACKET,  // [
-  RBRACKET,  // ]
-  COMMA,     // ,
-  SEMICOLON, // ;
-  COLON,     // :
-  DOT,       // .
-  QUESTION,  // ?
-  TILDE,     // ~
-  AT,        // @
+  LPAREN,     // (
+  RPAREN,     // )
+  LBRACE,     // {
+  RBRACE,     // }
+  LBRACKET,   // [
+  RBRACKET,   // ]
+  COMMA,      // ,
+  SEMICOLON,  // ;
+  COLON,      // :
+  DOT,        // .
+  DOT_DOT,    // ..
+  DOT_DOT_EQ, // ..=
+  QUESTION,   // ?
+  TILDE,      // ~
+  AT,         // @
 
   // Multi character operators
   ARROW,        // ->

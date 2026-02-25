@@ -114,7 +114,8 @@ Span Parser::get_span_from(size_t offset) const {
 }
 
 void Parser::report_error(const Span &span, const char *message) {
-  errors.push_back(std::format("Error at {}:{}", span.file.string(), message));
+  errors.push_back(std::format("Error at {}:{}:{}: {}", span.file.string(),
+                               span.start, span.end, message));
 }
 
 void Parser::report_error(const char *message) {
@@ -124,7 +125,9 @@ void Parser::report_error(const char *message) {
 
 void Parser::report_error_at_current(const char *message) {
   auto span = get_current_span();
-  report_error(span, message);
+  errors.push_back(std::format("Error at {}:{}:{}: {} (got '{}')",
+                               span.file.string(), span.start, span.end,
+                               message, current().lexeme));
 }
 
 void Parser::report_expected_but_got(const char *expected, const Token &got) {

@@ -138,4 +138,25 @@ private:
   Span get_span_from(size_t offset) const;
 };
 
+inline bool is_primitive_keyword(TokenType t) {
+  switch (t) {
+  case TokenType::KW_I8:
+  case TokenType::KW_I16:
+  case TokenType::KW_I32:
+  case TokenType::KW_I64:
+  case TokenType::KW_U8:
+  case TokenType::KW_U16:
+  case TokenType::KW_U32:
+  case TokenType::KW_U64:
+  case TokenType::KW_F32:
+  case TokenType::KW_F64:
+  case TokenType::KW_BOOL:
+  case TokenType::KW_USIZE:
+  case TokenType::KW_STRING:
+    return true;
+  default:
+    return false;
+  }
+}
+
 } // namespace shikimori

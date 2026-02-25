@@ -344,5 +344,5 @@ fn ret_bool()   -> bool   { return false; }
 fn ret_string() -> string { return "hi"; }
 fn ret_ptr()    -> *u8    { return null; }
 fn ret_slice()  -> []u8   { return null; }
-fn ret_opt()    -> ?i32   { return null; }
+fn ret_opt()    -> ?i32   { return Option.none; }
 

@@ -1,3 +1,5 @@
+#include "ast_printer.h"
+#include "parser.h"
 #include "tokenizer.hpp"
 #include <expected>
 #include <filesystem>
@@ -40,18 +42,27 @@ int main(int argc, char *argv[]) {
   }
 
   const std::string_view source_file = args[1];
+  auto filepath = std::filesystem::path(source_file);
 
   return read_source(source_file)
-      .and_then([](std::string source) -> std::expected<int, std::string> {
-        Tokenizer tokenizer(source);
-        std::vector<Token> tokens = tokenizer.tokenize();
+      .and_then(
+          [&filepath](std::string source) -> std::expected<int, std::string> {
+            Tokenizer tokenizer(source);
+            std::vector<Token> tokens = tokenizer.tokenize();
 
-        for (const auto &token : tokens) {
-          token.dump();
-        }
+            Parser parser(tokens, source, filepath);
+            auto program = parser.parse();
 
-        return 0;
-      })
+            if (!program) {
+              for (const auto &err : parser.get_errors()) {
+                std::print(stderr, "{}\n", err);
+              }
+              return 1;
+            }
+
+            dump_ast(*program);
+            return 0;
+          })
       .or_else([](const std::string &error) -> std::expected<int, std::string> {
         std::print(stderr, "{}\n", error);
         return 1;

@@ -192,16 +192,74 @@ Token Tokenizer::read_number() {
   size_t start_pos = position;
   bool is_float = false;
 
-  // Read digits
-  while (!is_at_end() && is_digit(current())) {
+  // Check for prefixed integers: 0b, 0x, 0o
+  if (current() == '0' && !is_at_end()) {
+    char next = peek();
+    if (next == 'b' || next == 'B') {
+      advance(); // consume '0'
+      advance(); // consume 'b'
+      while (!is_at_end() &&
+             (current() == '0' || current() == '1' || current() == '_')) {
+        advance();
+      }
+      std::string lexeme(source.substr(start_pos, position - start_pos));
+      Token token(TokenType::INT_LIT, lexeme, start_pos, position);
+      // Strip underscores and parse
+      std::string clean;
+      for (size_t i = 2; i < lexeme.size(); i++) {
+        if (lexeme[i] != '_')
+          clean += lexeme[i];
+      }
+      token.int_value = static_cast<int64_t>(std::stoull(clean, nullptr, 2));
+      return token;
+    }
+    if (next == 'x' || next == 'X') {
+      advance(); // consume '0'
+      advance(); // consume 'x'
+      while (!is_at_end() &&
+             (is_digit(current()) || (current() >= 'a' && current() <= 'f') ||
+              (current() >= 'A' && current() <= 'F') || current() == '_')) {
+        advance();
+      }
+      std::string lexeme(source.substr(start_pos, position - start_pos));
+      Token token(TokenType::INT_LIT, lexeme, start_pos, position);
+      std::string clean;
+      for (size_t i = 2; i < lexeme.size(); i++) {
+        if (lexeme[i] != '_')
+          clean += lexeme[i];
+      }
+      token.int_value = static_cast<int64_t>(std::stoull(clean, nullptr, 16));
+      return token;
+    }
+    if (next == 'o' || next == 'O') {
+      advance(); // consume '0'
+      advance(); // consume 'o'
+      while (!is_at_end() &&
+             ((current() >= '0' && current() <= '7') || current() == '_')) {
+        advance();
+      }
+      std::string lexeme(source.substr(start_pos, position - start_pos));
+      Token token(TokenType::INT_LIT, lexeme, start_pos, position);
+      std::string clean;
+      for (size_t i = 2; i < lexeme.size(); i++) {
+        if (lexeme[i] != '_')
+          clean += lexeme[i];
+      }
+      token.int_value = static_cast<int64_t>(std::stoull(clean, nullptr, 8));
+      return token;
+    }
+  }
+
+  // Decimal: read digits with underscore separators
+  while (!is_at_end() && (is_digit(current()) || current() == '_')) {
     advance();
   }
 
-  // Check for decimal point
-  if (!is_at_end() && current() == '.' && is_digit(peek())) {
+  // Check for decimal point (not range operator ..)
+  if (!is_at_end() && current() == '.' && peek() != '.' && is_digit(peek())) {
     is_float = true;
     advance(); // consume .
-    while (!is_at_end() && is_digit(current())) {
+    while (!is_at_end() && (is_digit(current()) || current() == '_')) {
       advance();
     }
   }
@@ -213,19 +271,25 @@ Token Tokenizer::read_number() {
     if (!is_at_end() && (current() == '+' || current() == '-')) {
       advance();
     }
-    while (!is_at_end() && is_digit(current())) {
+    while (!is_at_end() && (is_digit(current()) || current() == '_')) {
       advance();
     }
   }
 
   std::string lexeme(source.substr(start_pos, position - start_pos));
+  // Strip underscores for parsing
+  std::string clean;
+  for (char c : lexeme) {
+    if (c != '_')
+      clean += c;
+  }
   Token token(is_float ? TokenType::FLOAT_LIT : TokenType::INT_LIT, lexeme,
               start_pos, position);
 
   if (is_float) {
-    token.float_value = std::stod(lexeme);
+    token.float_value = std::stod(clean);
   } else {
-    token.int_value = std::stoll(lexeme);
+    token.int_value = std::stoll(clean);
   }
 
   return token;
@@ -342,6 +406,14 @@ Token Tokenizer::read_next_token() {
     return Token(TokenType::COLON, ":", start_pos, position);
 
   case '.':
+    if (current() == '.') {
+      advance();
+      if (current() == '=') {
+        advance();
+        return Token(TokenType::DOT_DOT_EQ, "..=", start_pos, position);
+      }
+      return Token(TokenType::DOT_DOT, "..", start_pos, position);
+    }
     return Token(TokenType::DOT, ".", start_pos, position);
 
   case '#':
