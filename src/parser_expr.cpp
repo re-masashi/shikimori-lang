@@ -481,7 +481,7 @@ std::optional<Spanned<ast::Expr>> Parser::parse_primary() {
     return inner;
   }
 
-  // Type-prefixed initializers / Array literals: [8]i32 { ... }
+  // Type prefixed initializers / Array literals: [8]i32 { ... }
   if (check(TokenType::LBRACKET) || check(TokenType::STAR) ||
       check(TokenType::QUESTION) || is_primitive_keyword(current().type)) {
     // Save position to backtrack if it's not an init

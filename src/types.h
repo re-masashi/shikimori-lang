@@ -15,12 +15,12 @@ using TypeRef = std::shared_ptr<Type>;
 
 struct TyVar {
   uint32_t id;
-  std::string name; // "T", "A", etc. For error messages
+  string name; // "T", "A", etc. For error messages
 };
 
 struct ETVar { // existential type var
   uint32_t id;
-  std::string name; // "T", "A", etc. For error messages
+  string name; // "T", "A", etc. For error messages
 };
 
 enum NamedTyKind {
@@ -63,9 +63,9 @@ struct InterfaceConstraint {
 };
 
 struct Type {
-  std::variant<TyVar, ETVar, TyNamed, FnTy, ForAll,
-               TyArray, // Slice, Pointer, Option, etc are named
-               InterfaceConstraint>
+  // Slice, Pointer, Option, etc are named
+  variant<TyVar, ETVar, TyNamed, FnTy, ForAll, TyArray,
+          InterfaceConstraint>
       ty; // have to add forall here
   Span span;
 };
