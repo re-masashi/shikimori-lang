@@ -8,6 +8,7 @@
 
 #include "ast/ast.h"
 #include "ast/typedast.h"
+#include "typechecker/import_resolver.h"
 
 using namespace std;
 using namespace shikimori;
@@ -30,6 +31,8 @@ struct TypeError : runtime_error {
 };
 
 struct Typechecker {
+public:
+  ImportResolver import_resolver;
   map<string, TypeRef> functions; // name -> ForAll or FnTy
   map<string, StructDef> structs;
   map<string, UnionDef> unions;
@@ -43,11 +46,17 @@ struct Typechecker {
   TypeRef current_return_type = nullptr;
 
   void collect(const ast::Program &program);
+  void collect_from_program(const ast::Program &program);
+  void collect_from_program_filtered(const ast::Program &program,
+                                     const vector<ast::ImportItem> &items);
+
   void collect_fn(const ast::FnDecl &decl);
   void collect_struct(const ast::StructDecl &decl);
   void collect_union(const ast::UnionDecl &decl);
   void collect_interface(const ast::InterfaceDecl &decl);
   void collect_extern(const ast::ExternDecl &decl);
+
+  void resolve_use(const ast::UseDecl &use, string file_path);
 
   TypeRef resolve_type(const ast::TypeAnnot &annot);
 

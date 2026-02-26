@@ -34,6 +34,8 @@ add_executable(shikimori
   src/parser/parser_stmt.cpp
   src/parser/parser_expr.cpp
   src/ast/ast_printer.cpp
+  src/typechecker/typechecker.cpp
+  src/typechecker/import_resolver.cpp
   src/span.cpp
 )
 
