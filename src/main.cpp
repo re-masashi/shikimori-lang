@@ -1,6 +1,6 @@
-#include "ast_printer.h"
-#include "parser.h"
-#include "tokenizer.hpp"
+#include "ast/ast_printer.h"
+#include "parser/parser.h"
+#include "parser/tokenizer.hpp"
 #include <expected>
 #include <filesystem>
 #include <fstream>

@@ -7,8 +7,8 @@
 #include <utility>
 #include <vector>
 
-#include "ast.h"
-#include "span.h"
+#include "../ast/ast.h"
+#include "../span.h"
 #include "tokenizer.hpp"
 
 using namespace std;

@@ -1,5 +1,5 @@
 if [[ $1 == "fmt" ]]; then
-  clang-format src/* -i
+  clang-format src/**/*.{cpp,h} -i
   exit
 fi
 

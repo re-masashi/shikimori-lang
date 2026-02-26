@@ -6,8 +6,8 @@
 #include <string>
 #include <vector>
 
-#include "ast.h"
-#include "typedast.h"
+#include "ast/ast.h"
+#include "ast/typedast.h"
 
 using namespace std;
 using namespace shikimori;

@@ -5,9 +5,9 @@
 #include <string>
 #include <vector>
 
+#include "../span.h"
+#include "../types.h"
 #include "ast.h"
-#include "span.h"
-#include "types.h"
 
 using namespace std;
 

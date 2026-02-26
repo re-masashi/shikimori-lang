@@ -1,5 +1,5 @@
 #include "span.h"
-#include "tokenizer.hpp"
+#include "parser/tokenizer.hpp"
 
 namespace shikimori {
 
