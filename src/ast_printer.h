@@ -2,10 +2,11 @@
 
 #include "ast.h"
 #include <iostream>
-#include <string>
+
+using namespace std;
 
 namespace shikimori {
 
-void dump_ast(const ast::Program &program, std::ostream &os = std::cout);
+void dump_ast(const ast::Program &program, ostream &os = cout);
 
 } // namespace shikimori

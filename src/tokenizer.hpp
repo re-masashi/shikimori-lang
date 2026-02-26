@@ -7,6 +7,8 @@
 #include <string_view>
 #include <vector>
 
+using namespace std;
+
 #define TOKEN_TYPES_SIMPLE                                                     \
   KW_FN, KW_STRUCT, KW_UNION, KW_INTERFACE, KW_EXTERN, KW_USE, KW_MACRO,       \
       KW_IMPL, KW_LET, KW_RETURN, KW_DEFER, KW_IF, KW_ELSE, KW_WHERE,          \
@@ -163,33 +165,33 @@ enum class TokenType {
 
 struct Token {
   TokenType type;
-  std::string lexeme;
+  string lexeme;
   size_t start;
   size_t end;
 
   // For numeric literals
-  std::optional<int64_t> int_value;
-  std::optional<double> float_value;
+  optional<int64_t> int_value;
+  optional<double> float_value;
 
-  Token(TokenType t, std::string lex, size_t s, size_t e)
+  Token(TokenType t, string lex, size_t s, size_t e)
       : type(t), lexeme(std::move(lex)), start(s), end(e) {}
 
   /// Dump token information to a stream
-  void dump(std::ostream &os = std::cout) const;
+  void dump(ostream &os = cout) const;
 };
 
 class Tokenizer {
 public:
-  explicit Tokenizer(std::string_view source);
+  explicit Tokenizer(string_view source);
 
   /// Tokenize the entire source and return a vector of tokens
-  std::vector<Token> tokenize();
+  vector<Token> tokenize();
 
   /// Get the next token (for streaming)
   Token next_token();
 
 private:
-  std::string_view source;
+  string_view source;
   size_t position;
   int line;
   int column;
@@ -212,7 +214,7 @@ private:
   static bool is_letter(char c);
   static bool is_identifier_start(char c);
   static bool is_identifier_continue(char c);
-  static TokenType get_keyword_type(std::string_view lexeme);
+  static TokenType get_keyword_type(string_view lexeme);
 };
 
 } // namespace shikimori

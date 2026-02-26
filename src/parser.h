@@ -11,29 +11,31 @@
 #include "span.h"
 #include "tokenizer.hpp"
 
+using namespace std;
+
 namespace shikimori {
 
 class Parser {
 public:
-  explicit Parser(std::string_view source,
-                  std::filesystem::path file = std::filesystem::path());
-  explicit Parser(const std::vector<Token> &tokens, std::string_view source,
-                  std::filesystem::path file = std::filesystem::path());
+  explicit Parser(string_view source,
+                  filesystem::path file = filesystem::path());
+  explicit Parser(const vector<Token> &tokens, string_view source,
+                  filesystem::path file = filesystem::path());
 
-  std::optional<ast::Program> parse();
+  optional<ast::Program> parse();
 
-  void set_source(std::string_view source);
-  void set_tokens(std::vector<Token> tokens);
-  void set_file(std::filesystem::path file);
+  void set_source(string_view source);
+  void set_tokens(vector<Token> tokens);
+  void set_file(filesystem::path file);
 
   const Token &current() const;
   const Token &peek(size_t offset = 1) const;
   const Token &previous() const;
   bool is_at_end() const;
   bool check(TokenType type) const;
-  bool check_any(std::initializer_list<TokenType> types) const;
+  bool check_any(initializer_list<TokenType> types) const;
   bool match(TokenType type);
-  bool match_any(std::initializer_list<TokenType> types);
+  bool match_any(initializer_list<TokenType> types);
 
   Token advance();
   Token consume(TokenType type, const char *error_message);
@@ -51,88 +53,86 @@ public:
   void report_unexpected_token();
 
   bool has_errors() const;
-  const std::vector<std::string> &get_errors() const;
+  const vector<string> &get_errors() const;
   void clear_errors();
 
-  std::optional<ast::Decl> parse_declaration();
-  std::optional<ast::FnDecl> parse_fn_decl();
-  std::optional<ast::StructDecl> parse_struct_decl();
-  std::optional<ast::UnionDecl> parse_union_decl();
-  std::optional<ast::InterfaceDecl> parse_interface_decl();
-  std::optional<ast::ExternDecl> parse_extern_decl();
-  std::optional<ast::UseDecl> parse_use_decl();
-  std::optional<ast::MacroDecl> parse_macro_decl();
+  optional<ast::Decl> parse_declaration();
+  optional<ast::FnDecl> parse_fn_decl();
+  optional<ast::StructDecl> parse_struct_decl();
+  optional<ast::UnionDecl> parse_union_decl();
+  optional<ast::InterfaceDecl> parse_interface_decl();
+  optional<ast::ExternDecl> parse_extern_decl();
+  optional<ast::UseDecl> parse_use_decl();
+  optional<ast::MacroDecl> parse_macro_decl();
 
-  std::optional<Spanned<ast::TypeAnnot>> parse_type();
-  std::optional<Spanned<ast::TypeAnnot>> parse_type_with_prefix_operators();
-  std::optional<Spanned<ast::TypeAnnot>> parse_named_type();
-  std::optional<Spanned<ast::InterfaceTypeAnnot>> parse_interface_type();
-  std::optional<Spanned<ast::PrimitiveType>> parse_primitive_type();
+  optional<Spanned<ast::TypeAnnot>> parse_type();
+  optional<Spanned<ast::TypeAnnot>> parse_type_with_prefix_operators();
+  optional<Spanned<ast::TypeAnnot>> parse_named_type();
+  optional<Spanned<ast::InterfaceTypeAnnot>> parse_interface_type();
+  optional<Spanned<ast::PrimitiveType>> parse_primitive_type();
 
-  std::optional<ast::Param> parse_param();
-  std::optional<ast::GenericParam> parse_generic_param();
-  std::optional<ast::WhereConstraint> parse_where_constraint();
-  std::optional<ast::ExternParam> parse_extern_param();
-  std::optional<ast::MacroParam> parse_macro_param();
-  std::optional<ast::InterfaceMethod> parse_interface_method();
-  std::optional<ast::FieldDecl> parse_field_decl();
-  std::optional<ast::UnionVariant> parse_variant_decl();
+  optional<ast::Param> parse_param();
+  optional<ast::GenericParam> parse_generic_param();
+  optional<ast::WhereConstraint> parse_where_constraint();
+  optional<ast::ExternParam> parse_extern_param();
+  optional<ast::MacroParam> parse_macro_param();
+  optional<ast::InterfaceMethod> parse_interface_method();
+  optional<ast::FieldDecl> parse_field_decl();
+  optional<ast::UnionVariant> parse_variant_decl();
 
-  std::optional<Spanned<ast::Stmt>> parse_statement();
-  std::optional<Spanned<ast::Stmt>> parse_let_stmt();
-  std::optional<Spanned<ast::Stmt>> parse_return_stmt();
-  std::optional<Spanned<ast::Stmt>> parse_defer_stmt();
-  std::optional<Spanned<ast::Stmt>> parse_loop_stmt();
-  std::optional<Spanned<ast::Stmt>> parse_while_stmt();
-  std::optional<Spanned<ast::Stmt>> parse_for_stmt();
-  std::optional<Spanned<ast::Stmt>> parse_comptime_stmt();
-  std::optional<Spanned<ast::Stmt>> parse_expr_stmt();
+  optional<Spanned<ast::Stmt>> parse_statement();
+  optional<Spanned<ast::Stmt>> parse_let_stmt();
+  optional<Spanned<ast::Stmt>> parse_return_stmt();
+  optional<Spanned<ast::Stmt>> parse_defer_stmt();
+  optional<Spanned<ast::Stmt>> parse_loop_stmt();
+  optional<Spanned<ast::Stmt>> parse_while_stmt();
+  optional<Spanned<ast::Stmt>> parse_for_stmt();
+  optional<Spanned<ast::Stmt>> parse_comptime_stmt();
+  optional<Spanned<ast::Stmt>> parse_expr_stmt();
 
-  std::optional<ast::Block> parse_block();
+  optional<ast::Block> parse_block();
 
-  std::optional<Spanned<ast::Expr>> parse_expression();
-  std::optional<Spanned<ast::Expr>> parse_assignment();
-  std::optional<Spanned<ast::Expr>> parse_logical_or();
-  std::optional<Spanned<ast::Expr>> parse_logical_and();
-  std::optional<Spanned<ast::Expr>> parse_bitwise_or();
-  std::optional<Spanned<ast::Expr>> parse_bitwise_xor();
-  std::optional<Spanned<ast::Expr>> parse_bitwise_and();
-  std::optional<Spanned<ast::Expr>> parse_equality();
-  std::optional<Spanned<ast::Expr>> parse_comparison();
-  std::optional<Spanned<ast::Expr>> parse_shift();
-  std::optional<Spanned<ast::Expr>> parse_additive();
-  std::optional<Spanned<ast::Expr>> parse_multiplicative();
-  std::optional<Spanned<ast::Expr>> parse_unary();
-  std::optional<Spanned<ast::Expr>> parse_postfix();
-  std::optional<Spanned<ast::Expr>> parse_primary();
+  optional<Spanned<ast::Expr>> parse_expression();
+  optional<Spanned<ast::Expr>> parse_assignment();
+  optional<Spanned<ast::Expr>> parse_logical_or();
+  optional<Spanned<ast::Expr>> parse_logical_and();
+  optional<Spanned<ast::Expr>> parse_bitwise_or();
+  optional<Spanned<ast::Expr>> parse_bitwise_xor();
+  optional<Spanned<ast::Expr>> parse_bitwise_and();
+  optional<Spanned<ast::Expr>> parse_equality();
+  optional<Spanned<ast::Expr>> parse_comparison();
+  optional<Spanned<ast::Expr>> parse_shift();
+  optional<Spanned<ast::Expr>> parse_additive();
+  optional<Spanned<ast::Expr>> parse_multiplicative();
+  optional<Spanned<ast::Expr>> parse_unary();
+  optional<Spanned<ast::Expr>> parse_postfix();
+  optional<Spanned<ast::Expr>> parse_primary();
 
-  std::optional<Spanned<ast::Expr>> parse_if_expr();
-  std::optional<Spanned<ast::Expr>> parse_match_expr();
-  std::optional<Spanned<ast::Expr>> parse_struct_init();
-  std::optional<Spanned<ast::Expr>> parse_scope_access();
-  std::optional<Spanned<ast::Expr>> parse_comptime_expr();
-  std::optional<Spanned<ast::Expr>> parse_builtin_call();
-  std::optional<Spanned<ast::Expr>> parse_break_expr();
-  std::optional<Spanned<ast::Expr>> parse_continue_expr();
+  optional<Spanned<ast::Expr>> parse_if_expr();
+  optional<Spanned<ast::Expr>> parse_match_expr();
+  optional<Spanned<ast::Expr>> parse_struct_init();
+  optional<Spanned<ast::Expr>> parse_scope_access();
+  optional<Spanned<ast::Expr>> parse_comptime_expr();
+  optional<Spanned<ast::Expr>> parse_builtin_call();
+  optional<Spanned<ast::Expr>> parse_break_expr();
+  optional<Spanned<ast::Expr>> parse_continue_expr();
 
-  std::optional<Spanned<ast::Pattern>> parse_pattern();
-  std::optional<ast::MatchArm> parse_match_arm();
+  optional<Spanned<ast::Pattern>> parse_pattern();
+  optional<ast::MatchArm> parse_match_arm();
 
-  std::optional<std::vector<std::unique_ptr<ast::Expr>>> parse_arg_list();
-  std::optional<
-      std::vector<std::pair<ast::Identifier, std::unique_ptr<ast::Expr>>>>
+  optional<vector<unique_ptr<ast::Expr>>> parse_arg_list();
+  optional<vector<pair<ast::Identifier, unique_ptr<ast::Expr>>>>
   parse_field_init_list();
-  std::optional<std::vector<std::unique_ptr<ast::TypeAnnot>>>
-  parse_type_arg_list();
+  optional<vector<unique_ptr<ast::TypeAnnot>>> parse_type_arg_list();
 
-  std::optional<ast::Identifier> parse_label();
+  optional<ast::Identifier> parse_label();
 
 private:
-  std::string_view source;
-  std::filesystem::path file;
-  std::vector<Token> tokens;
+  string_view source;
+  filesystem::path file;
+  vector<Token> tokens;
   size_t current_pos;
-  std::vector<std::string> errors;
+  vector<string> errors;
 
   // Helper to get span for previous N tokens
   Span get_span_from(size_t offset) const;

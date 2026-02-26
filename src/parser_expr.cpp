@@ -1,16 +1,18 @@
 #include "parser.h"
 
+using namespace std;
+
 namespace shikimori {
 
-std::optional<Spanned<ast::Expr>> Parser::parse_expression() {
+optional<Spanned<ast::Expr>> Parser::parse_expression() {
   return parse_assignment();
 }
 
-std::optional<Spanned<ast::Expr>> Parser::parse_assignment() {
+optional<Spanned<ast::Expr>> Parser::parse_assignment() {
   size_t start = current_pos;
   auto left = parse_logical_or();
   if (!left)
-    return std::nullopt;
+    return nullopt;
 
   // Range operators: .. and ..=
   if (check(TokenType::DOT_DOT) || check(TokenType::DOT_DOT_EQ)) {
@@ -18,11 +20,11 @@ std::optional<Spanned<ast::Expr>> Parser::parse_assignment() {
     advance();
     auto right = parse_logical_or();
     if (!right)
-      return std::nullopt;
+      return nullopt;
 
     ast::RangeExpr range;
-    range.start = std::make_unique<ast::Expr>(std::move(left->value));
-    range.end = std::make_unique<ast::Expr>(std::move(right->value));
+    range.start = make_unique<ast::Expr>(std::move(left->value));
+    range.end = make_unique<ast::Expr>(std::move(right->value));
     range.inclusive = inclusive;
     range.span = get_span_for(start);
 
@@ -35,11 +37,11 @@ std::optional<Spanned<ast::Expr>> Parser::parse_assignment() {
   if (match(TokenType::ASSIGN)) {
     auto right = parse_expression();
     if (!right)
-      return std::nullopt;
+      return nullopt;
 
     ast::Assignment assign;
-    assign.target = std::make_unique<ast::Expr>(std::move(left->value));
-    assign.value = std::make_unique<ast::Expr>(std::move(right->value));
+    assign.target = make_unique<ast::Expr>(std::move(left->value));
+    assign.value = make_unique<ast::Expr>(std::move(right->value));
     assign.span = get_span_for(start);
 
     ast::Expr expr;
@@ -53,17 +55,17 @@ std::optional<Spanned<ast::Expr>> Parser::parse_assignment() {
 
 // Helper macro for binary operator parsing
 #define DEFINE_BINARY_PARSER(name, next_parser, ...)                           \
-  std::optional<Spanned<ast::Expr>> Parser::name() {                           \
+  optional<Spanned<ast::Expr>> Parser::name() {                                \
     size_t start = current_pos;                                                \
     auto left = next_parser();                                                 \
     if (!left)                                                                 \
-      return std::nullopt;                                                     \
+      return nullopt;                                                          \
     while (check_any({__VA_ARGS__})) {                                         \
       auto op_tok = current();                                                 \
       advance();                                                               \
       auto right = next_parser();                                              \
       if (!right)                                                              \
-        return std::nullopt;                                                   \
+        return nullopt;                                                        \
       ast::BinaryOp op;                                                        \
       switch (op_tok.type) {                                                   \
       case TokenType::OR:                                                      \
@@ -126,8 +128,8 @@ std::optional<Spanned<ast::Expr>> Parser::parse_assignment() {
       }                                                                        \
       ast::BinaryExpr bin;                                                     \
       bin.op = op;                                                             \
-      bin.left = std::make_unique<ast::Expr>(std::move(left->value));          \
-      bin.right = std::make_unique<ast::Expr>(std::move(right->value));        \
+      bin.left = make_unique<ast::Expr>(std::move(left->value));               \
+      bin.right = make_unique<ast::Expr>(std::move(right->value));             \
       bin.span = get_span_for(start);                                          \
       ast::Expr expr;                                                          \
       expr.span = bin.span;                                                    \
@@ -155,16 +157,16 @@ DEFINE_BINARY_PARSER(parse_multiplicative, parse_unary, TokenType::STAR,
 
 #undef DEFINE_BINARY_PARSER
 
-std::optional<Spanned<ast::Expr>> Parser::parse_unary() {
+optional<Spanned<ast::Expr>> Parser::parse_unary() {
   size_t start = current_pos;
 
   if (match(TokenType::NOT)) {
     auto operand = parse_unary();
     if (!operand)
-      return std::nullopt;
+      return nullopt;
     ast::UnaryExpr un;
     un.op = ast::UnaryOp::Not;
-    un.operand = std::make_unique<ast::Expr>(std::move(operand->value));
+    un.operand = make_unique<ast::Expr>(std::move(operand->value));
     un.span = get_span_for(start);
     ast::Expr expr;
     expr.span = un.span;
@@ -198,10 +200,10 @@ std::optional<Spanned<ast::Expr>> Parser::parse_unary() {
     }
     auto operand = parse_unary();
     if (!operand)
-      return std::nullopt;
+      return nullopt;
     ast::UnaryExpr un;
     un.op = ast::UnaryOp::Neg;
-    un.operand = std::make_unique<ast::Expr>(std::move(operand->value));
+    un.operand = make_unique<ast::Expr>(std::move(operand->value));
     un.span = get_span_for(start);
     ast::Expr expr;
     expr.span = un.span;
@@ -212,10 +214,10 @@ std::optional<Spanned<ast::Expr>> Parser::parse_unary() {
   if (match(TokenType::STAR)) {
     auto operand = parse_unary();
     if (!operand)
-      return std::nullopt;
+      return nullopt;
     ast::UnaryExpr un;
     un.op = ast::UnaryOp::Deref;
-    un.operand = std::make_unique<ast::Expr>(std::move(operand->value));
+    un.operand = make_unique<ast::Expr>(std::move(operand->value));
     un.span = get_span_for(start);
     ast::Expr expr;
     expr.span = un.span;
@@ -226,10 +228,10 @@ std::optional<Spanned<ast::Expr>> Parser::parse_unary() {
   if (match(TokenType::BIT_AND)) {
     auto operand = parse_unary();
     if (!operand)
-      return std::nullopt;
+      return nullopt;
     ast::UnaryExpr un;
     un.op = ast::UnaryOp::AddrOf;
-    un.operand = std::make_unique<ast::Expr>(std::move(operand->value));
+    un.operand = make_unique<ast::Expr>(std::move(operand->value));
     un.span = get_span_for(start);
     ast::Expr expr;
     expr.span = un.span;
@@ -240,10 +242,10 @@ std::optional<Spanned<ast::Expr>> Parser::parse_unary() {
   if (match(TokenType::TILDE)) {
     auto operand = parse_unary();
     if (!operand)
-      return std::nullopt;
+      return nullopt;
     ast::UnaryExpr un;
     un.op = ast::UnaryOp::BitNot;
-    un.operand = std::make_unique<ast::Expr>(std::move(operand->value));
+    un.operand = make_unique<ast::Expr>(std::move(operand->value));
     un.span = get_span_for(start);
     ast::Expr expr;
     expr.span = un.span;
@@ -254,33 +256,33 @@ std::optional<Spanned<ast::Expr>> Parser::parse_unary() {
   return parse_postfix();
 }
 
-std::optional<Spanned<ast::Expr>> Parser::parse_postfix() {
+optional<Spanned<ast::Expr>> Parser::parse_postfix() {
   size_t start = current_pos;
   auto left = parse_primary();
   if (!left)
-    return std::nullopt;
+    return nullopt;
 
   while (true) {
     if (check(TokenType::DOT)) {
       advance(); // consume '.'
       auto name_tok = consume(TokenType::IDENT, "field/method name");
       if (has_errors())
-        return std::nullopt;
+        return nullopt;
 
       if (match(TokenType::LPAREN)) {
         // method call
         ast::MethodCall mc;
-        mc.object = std::make_unique<ast::Expr>(std::move(left->value));
+        mc.object = make_unique<ast::Expr>(std::move(left->value));
         mc.method = name_tok.lexeme;
         if (!check(TokenType::RPAREN)) {
           auto args = parse_arg_list();
           if (!args)
-            return std::nullopt;
+            return nullopt;
           mc.args = std::move(*args);
         }
         consume(TokenType::RPAREN, "')'");
         if (has_errors())
-          return std::nullopt;
+          return nullopt;
         mc.span = get_span_for(start);
         ast::Expr expr;
         expr.span = mc.span;
@@ -289,7 +291,7 @@ std::optional<Spanned<ast::Expr>> Parser::parse_postfix() {
       } else {
         // field access
         ast::FieldAccess fa;
-        fa.object = std::make_unique<ast::Expr>(std::move(left->value));
+        fa.object = make_unique<ast::Expr>(std::move(left->value));
         fa.field = name_tok.lexeme;
         fa.span = get_span_for(start);
         ast::Expr expr;
@@ -301,14 +303,14 @@ std::optional<Spanned<ast::Expr>> Parser::parse_postfix() {
       // index access: #[expr]
       auto idx = parse_expression();
       if (!idx)
-        return std::nullopt;
+        return nullopt;
       consume(TokenType::RBRACKET, "']'");
       if (has_errors())
-        return std::nullopt;
+        return nullopt;
 
       ast::IndexAccess ia;
-      ia.object = std::make_unique<ast::Expr>(std::move(left->value));
-      ia.index = std::make_unique<ast::Expr>(std::move(idx->value));
+      ia.object = make_unique<ast::Expr>(std::move(left->value));
+      ia.index = make_unique<ast::Expr>(std::move(idx->value));
       ia.span = get_span_for(start);
       ast::Expr expr;
       expr.span = ia.span;
@@ -318,16 +320,16 @@ std::optional<Spanned<ast::Expr>> Parser::parse_postfix() {
       // function call
       advance();
       ast::Call call;
-      call.callee = std::make_unique<ast::Expr>(std::move(left->value));
+      call.callee = make_unique<ast::Expr>(std::move(left->value));
       if (!check(TokenType::RPAREN)) {
         auto args = parse_arg_list();
         if (!args)
-          return std::nullopt;
+          return nullopt;
         call.args = std::move(*args);
       }
       consume(TokenType::RPAREN, "')'");
       if (has_errors())
-        return std::nullopt;
+        return nullopt;
       call.span = get_span_for(start);
       ast::Expr expr;
       expr.span = call.span;
@@ -352,7 +354,7 @@ static bool looks_like_struct_init_body(const Parser &p) {
   return false;
 }
 
-std::optional<Spanned<ast::Expr>> Parser::parse_primary() {
+optional<Spanned<ast::Expr>> Parser::parse_primary() {
   size_t start = current_pos;
 
   // Literals
@@ -427,7 +429,7 @@ std::optional<Spanned<ast::Expr>> Parser::parse_primary() {
     advance(); // consume 'loop'
     auto body = parse_block();
     if (!body)
-      return std::nullopt;
+      return nullopt;
     // Wrap as a LoopStmt inside... actually this needs to be an expression.
     // Let's handle loop-as-expr: we create a MatchExpr-like wrapper?
     // Actually looking at the AST, there's no LoopExpr. Let's look at usage:
@@ -443,7 +445,7 @@ std::optional<Spanned<ast::Expr>> Parser::parse_primary() {
     ast::Expr true_expr;
     true_expr.span = body->span;
     true_expr.value = ast::BoolLiteral{body->span, true};
-    branch.condition = std::make_unique<ast::Expr>(std::move(true_expr));
+    branch.condition = make_unique<ast::Expr>(std::move(true_expr));
     branch.body = std::move(*body);
     branch.span = get_span_for(loop_start);
     if_expr.branches.push_back(std::move(branch));
@@ -474,10 +476,10 @@ std::optional<Spanned<ast::Expr>> Parser::parse_primary() {
   if (match(TokenType::LPAREN)) {
     auto inner = parse_expression();
     if (!inner)
-      return std::nullopt;
+      return nullopt;
     consume(TokenType::RPAREN, "')'");
     if (has_errors())
-      return std::nullopt;
+      return nullopt;
     return inner;
   }
 
@@ -491,16 +493,16 @@ std::optional<Spanned<ast::Expr>> Parser::parse_primary() {
         looks_like_struct_init_body(*this)) {
       advance(); // consume '{'
       ast::TypeInit ti;
-      ti.type = std::make_unique<ast::TypeAnnot>(std::move(type->value));
+      ti.type = make_unique<ast::TypeAnnot>(std::move(type->value));
       if (!check(TokenType::RBRACE)) {
         auto fields = parse_field_init_list();
         if (!fields)
-          return std::nullopt;
+          return nullopt;
         ti.fields = std::move(*fields);
       }
       consume(TokenType::RBRACE, "'}'");
       if (has_errors())
-        return std::nullopt;
+        return nullopt;
       ti.span = get_span_for(start);
       ast::Expr expr;
       expr.span = ti.span;
@@ -524,7 +526,7 @@ std::optional<Spanned<ast::Expr>> Parser::parse_primary() {
       advance(); // consume '::'
       auto member_tok = consume(TokenType::IDENT, "scope member name");
       if (has_errors())
-        return std::nullopt;
+        return nullopt;
 
       ast::ScopeAccess sa;
       sa.scope = name_tok.lexeme;
@@ -533,18 +535,18 @@ std::optional<Spanned<ast::Expr>> Parser::parse_primary() {
 
       // Check for payload: (expr, expr, ...)
       if (match(TokenType::LPAREN)) {
-        std::vector<std::unique_ptr<ast::Expr>> args;
+        vector<unique_ptr<ast::Expr>> args;
         if (!check(TokenType::RPAREN)) {
           do {
             auto arg = parse_expression();
             if (!arg)
-              return std::nullopt;
-            args.push_back(std::make_unique<ast::Expr>(std::move(arg->value)));
+              return nullopt;
+            args.push_back(make_unique<ast::Expr>(std::move(arg->value)));
           } while (match(TokenType::COMMA));
         }
         consume(TokenType::RPAREN, "')'");
         if (has_errors())
-          return std::nullopt;
+          return nullopt;
         sa.payload = std::move(args);
       }
 
@@ -562,7 +564,7 @@ std::optional<Spanned<ast::Expr>> Parser::parse_primary() {
       advance(); // consume '['
 
       // Try to parse as type arg list
-      std::vector<std::unique_ptr<ast::TypeAnnot>> type_args;
+      vector<unique_ptr<ast::TypeAnnot>> type_args;
       bool valid_types = true;
       while (!check(TokenType::RBRACKET) && !is_at_end()) {
         auto t = parse_type();
@@ -570,8 +572,7 @@ std::optional<Spanned<ast::Expr>> Parser::parse_primary() {
           valid_types = false;
           break;
         }
-        type_args.push_back(
-            std::make_unique<ast::TypeAnnot>(std::move(t->value)));
+        type_args.push_back(make_unique<ast::TypeAnnot>(std::move(t->value)));
         if (!match(TokenType::COMMA))
           break;
       }
@@ -601,12 +602,12 @@ std::optional<Spanned<ast::Expr>> Parser::parse_primary() {
         if (!check(TokenType::RBRACE)) {
           auto fields = parse_field_init_list();
           if (!fields)
-            return std::nullopt;
+            return nullopt;
           si.fields = std::move(*fields);
         }
         consume(TokenType::RBRACE, "'}'");
         if (has_errors())
-          return std::nullopt;
+          return nullopt;
         si.span = get_span_for(start);
         ast::Expr expr;
         expr.span = si.span;
@@ -619,7 +620,7 @@ std::optional<Spanned<ast::Expr>> Parser::parse_primary() {
         advance(); // consume '::'
         auto member_tok = consume(TokenType::IDENT, "scope member name");
         if (has_errors())
-          return std::nullopt;
+          return nullopt;
 
         ast::ScopeAccess sa;
         sa.scope = name_tok.lexeme;
@@ -629,19 +630,18 @@ std::optional<Spanned<ast::Expr>> Parser::parse_primary() {
 
         // Check for payload: (expr, expr, ...)
         if (match(TokenType::LPAREN)) {
-          std::vector<std::unique_ptr<ast::Expr>> args;
+          vector<unique_ptr<ast::Expr>> args;
           if (!check(TokenType::RPAREN)) {
             do {
               auto arg = parse_expression();
               if (!arg)
-                return std::nullopt;
-              args.push_back(
-                  std::make_unique<ast::Expr>(std::move(arg->value)));
+                return nullopt;
+              args.push_back(make_unique<ast::Expr>(std::move(arg->value)));
             } while (match(TokenType::COMMA));
           }
           consume(TokenType::RPAREN, "')'");
           if (has_errors())
-            return std::nullopt;
+            return nullopt;
           sa.payload = std::move(args);
         }
 
@@ -672,12 +672,12 @@ std::optional<Spanned<ast::Expr>> Parser::parse_primary() {
         if (!check(TokenType::RBRACE)) {
           auto fields = parse_field_init_list();
           if (!fields)
-            return std::nullopt;
+            return nullopt;
           si.fields = std::move(*fields);
         }
         consume(TokenType::RBRACE, "'}'");
         if (has_errors())
-          return std::nullopt;
+          return nullopt;
         si.span = get_span_for(start);
         ast::Expr expr;
         expr.span = si.span;
@@ -697,26 +697,26 @@ std::optional<Spanned<ast::Expr>> Parser::parse_primary() {
   }
 
   report_error_at_current("expected expression");
-  return std::nullopt;
+  return nullopt;
 }
 
-std::optional<Spanned<ast::Expr>> Parser::parse_if_expr() {
+optional<Spanned<ast::Expr>> Parser::parse_if_expr() {
   size_t start = current_pos;
   consume(TokenType::KW_IF, "'if'");
   if (has_errors())
-    return std::nullopt;
+    return nullopt;
 
   ast::IfExpr if_expr;
 
   auto cond = parse_expression();
   if (!cond)
-    return std::nullopt;
+    return nullopt;
   auto body = parse_block();
   if (!body)
-    return std::nullopt;
+    return nullopt;
 
   ast::IfBranch first;
-  first.condition = std::make_unique<ast::Expr>(std::move(cond->value));
+  first.condition = make_unique<ast::Expr>(std::move(cond->value));
   first.body = std::move(*body);
   first.span = get_span_for(start);
   if_expr.branches.push_back(std::move(first));
@@ -726,19 +726,19 @@ std::optional<Spanned<ast::Expr>> Parser::parse_if_expr() {
     if (match(TokenType::KW_IF)) {
       auto ei_cond = parse_expression();
       if (!ei_cond)
-        return std::nullopt;
+        return nullopt;
       auto ei_body = parse_block();
       if (!ei_body)
-        return std::nullopt;
+        return nullopt;
       ast::IfBranch branch;
-      branch.condition = std::make_unique<ast::Expr>(std::move(ei_cond->value));
+      branch.condition = make_unique<ast::Expr>(std::move(ei_cond->value));
       branch.body = std::move(*ei_body);
       branch.span = get_span_for(start);
       if_expr.branches.push_back(std::move(branch));
     } else {
       auto else_body = parse_block();
       if (!else_body)
-        return std::nullopt;
+        return nullopt;
       if_expr.else_branch = std::move(*else_body);
       break;
     }
@@ -751,33 +751,33 @@ std::optional<Spanned<ast::Expr>> Parser::parse_if_expr() {
   return Spanned<ast::Expr>(std::move(expr), expr.span);
 }
 
-std::optional<Spanned<ast::Expr>> Parser::parse_match_expr() {
+optional<Spanned<ast::Expr>> Parser::parse_match_expr() {
   size_t start = current_pos;
   consume(TokenType::KW_MATCH, "'match'");
   if (has_errors())
-    return std::nullopt;
+    return nullopt;
 
   auto subject = parse_expression();
   if (!subject)
-    return std::nullopt;
+    return nullopt;
 
   consume(TokenType::LBRACE, "'{'");
   if (has_errors())
-    return std::nullopt;
+    return nullopt;
 
   ast::MatchExpr match_expr;
-  match_expr.subject = std::make_unique<ast::Expr>(std::move(subject->value));
+  match_expr.subject = make_unique<ast::Expr>(std::move(subject->value));
 
   while (!check(TokenType::RBRACE) && !is_at_end()) {
     auto arm = parse_match_arm();
     if (!arm)
-      return std::nullopt;
+      return nullopt;
     match_expr.arms.push_back(std::move(*arm));
   }
 
   consume(TokenType::RBRACE, "'}'");
   if (has_errors())
-    return std::nullopt;
+    return nullopt;
 
   match_expr.span = get_span_for(start);
   ast::Expr expr;
@@ -786,19 +786,19 @@ std::optional<Spanned<ast::Expr>> Parser::parse_match_expr() {
   return Spanned<ast::Expr>(std::move(expr), expr.span);
 }
 
-std::optional<ast::MatchArm> Parser::parse_match_arm() {
+optional<ast::MatchArm> Parser::parse_match_arm() {
   size_t start = current_pos;
   auto pat = parse_pattern();
   if (!pat)
-    return std::nullopt;
+    return nullopt;
 
   consume(TokenType::FAT_ARROW, "'=>'");
   if (has_errors())
-    return std::nullopt;
+    return nullopt;
 
   auto body = parse_block();
   if (!body)
-    return std::nullopt;
+    return nullopt;
 
   // Consume trailing comma after arm block
   match(TokenType::COMMA);
@@ -810,7 +810,7 @@ std::optional<ast::MatchArm> Parser::parse_match_arm() {
   return arm;
 }
 
-std::optional<Spanned<ast::Pattern>> Parser::parse_pattern() {
+optional<Spanned<ast::Pattern>> Parser::parse_pattern() {
   size_t start = current_pos;
 
   // Wildcard: _
@@ -893,10 +893,10 @@ std::optional<Spanned<ast::Pattern>> Parser::parse_pattern() {
     if (match(TokenType::LPAREN)) {
       auto binding_tok = consume(TokenType::IDENT, "binding name");
       if (has_errors())
-        return std::nullopt;
+        return nullopt;
       consume(TokenType::RPAREN, "')'");
       if (has_errors())
-        return std::nullopt;
+        return nullopt;
 
       ast::VariantPattern vp;
       vp.variant = name_tok.lexeme;
@@ -919,21 +919,21 @@ std::optional<Spanned<ast::Pattern>> Parser::parse_pattern() {
   }
 
   report_error_at_current("expected pattern");
-  return std::nullopt;
+  return nullopt;
 }
 
-std::optional<Spanned<ast::Expr>> Parser::parse_comptime_expr() {
+optional<Spanned<ast::Expr>> Parser::parse_comptime_expr() {
   size_t start = current_pos;
   consume(TokenType::KW_COMPTIME, "'comptime'");
   if (has_errors())
-    return std::nullopt;
+    return nullopt;
 
   auto inner = parse_expression();
   if (!inner)
-    return std::nullopt;
+    return nullopt;
 
   ast::ComptimeExpr ce;
-  ce.expr = std::make_unique<ast::Expr>(std::move(inner->value));
+  ce.expr = make_unique<ast::Expr>(std::move(inner->value));
   ce.span = get_span_for(start);
 
   ast::Expr expr;
@@ -942,19 +942,19 @@ std::optional<Spanned<ast::Expr>> Parser::parse_comptime_expr() {
   return Spanned<ast::Expr>(std::move(expr), expr.span);
 }
 
-std::optional<Spanned<ast::Expr>> Parser::parse_builtin_call() {
+optional<Spanned<ast::Expr>> Parser::parse_builtin_call() {
   size_t start = current_pos;
   consume(TokenType::AT, "'@'");
   if (has_errors())
-    return std::nullopt;
+    return nullopt;
 
   auto name_tok = consume(TokenType::IDENT, "builtin name");
   if (has_errors())
-    return std::nullopt;
+    return nullopt;
 
   consume(TokenType::LPAREN, "'('");
   if (has_errors())
-    return std::nullopt;
+    return nullopt;
 
   ast::BuiltinCall bc;
   bc.name = name_tok.lexeme;
@@ -970,12 +970,12 @@ std::optional<Spanned<ast::Expr>> Parser::parse_builtin_call() {
         ast::Expr arg_expr;
         arg_expr.span = ident.span;
         arg_expr.value = std::move(ident);
-        bc.args.push_back(std::make_unique<ast::Expr>(std::move(arg_expr)));
+        bc.args.push_back(make_unique<ast::Expr>(std::move(arg_expr)));
       } else {
         auto arg = parse_expression();
         if (!arg)
-          return std::nullopt;
-        bc.args.push_back(std::make_unique<ast::Expr>(std::move(arg->value)));
+          return nullopt;
+        bc.args.push_back(make_unique<ast::Expr>(std::move(arg->value)));
       }
       if (!match(TokenType::COMMA))
         break;
@@ -984,7 +984,7 @@ std::optional<Spanned<ast::Expr>> Parser::parse_builtin_call() {
 
   consume(TokenType::RPAREN, "')'");
   if (has_errors())
-    return std::nullopt;
+    return nullopt;
 
   bc.span = get_span_for(start);
   ast::Expr expr;
@@ -993,11 +993,11 @@ std::optional<Spanned<ast::Expr>> Parser::parse_builtin_call() {
   return Spanned<ast::Expr>(std::move(expr), expr.span);
 }
 
-std::optional<Spanned<ast::Expr>> Parser::parse_break_expr() {
+optional<Spanned<ast::Expr>> Parser::parse_break_expr() {
   size_t start = current_pos;
   consume(TokenType::KW_BREAK, "'break'");
   if (has_errors())
-    return std::nullopt;
+    return nullopt;
 
   ast::Break brk;
 
@@ -1005,7 +1005,7 @@ std::optional<Spanned<ast::Expr>> Parser::parse_break_expr() {
   if (match(TokenType::COLON)) {
     auto label_tok = consume(TokenType::IDENT, "label name");
     if (has_errors())
-      return std::nullopt;
+      return nullopt;
     brk.label = label_tok.lexeme;
   }
 
@@ -1013,8 +1013,8 @@ std::optional<Spanned<ast::Expr>> Parser::parse_break_expr() {
   if (!check(TokenType::SEMICOLON) && !check(TokenType::RBRACE)) {
     auto val = parse_expression();
     if (!val)
-      return std::nullopt;
-    brk.value = std::make_unique<ast::Expr>(std::move(val->value));
+      return nullopt;
+    brk.value = make_unique<ast::Expr>(std::move(val->value));
   }
 
   brk.span = get_span_for(start);
@@ -1024,18 +1024,18 @@ std::optional<Spanned<ast::Expr>> Parser::parse_break_expr() {
   return Spanned<ast::Expr>(std::move(expr), expr.span);
 }
 
-std::optional<Spanned<ast::Expr>> Parser::parse_continue_expr() {
+optional<Spanned<ast::Expr>> Parser::parse_continue_expr() {
   size_t start = current_pos;
   consume(TokenType::KW_CONTINUE, "'continue'");
   if (has_errors())
-    return std::nullopt;
+    return nullopt;
 
   ast::Continue cont;
 
   if (match(TokenType::COLON)) {
     auto label_tok = consume(TokenType::IDENT, "label name");
     if (has_errors())
-      return std::nullopt;
+      return nullopt;
     cont.label = label_tok.lexeme;
   }
 
@@ -1048,67 +1048,64 @@ std::optional<Spanned<ast::Expr>> Parser::parse_continue_expr() {
 
 // Argument list helpers
 
-std::optional<std::vector<std::unique_ptr<ast::Expr>>>
-Parser::parse_arg_list() {
-  std::vector<std::unique_ptr<ast::Expr>> args;
+optional<vector<unique_ptr<ast::Expr>>> Parser::parse_arg_list() {
+  vector<unique_ptr<ast::Expr>> args;
   while (!is_at_end()) {
     auto arg = parse_expression();
     if (!arg)
-      return std::nullopt;
-    args.push_back(std::make_unique<ast::Expr>(std::move(arg->value)));
+      return nullopt;
+    args.push_back(make_unique<ast::Expr>(std::move(arg->value)));
     if (!match(TokenType::COMMA))
       break;
   }
   return args;
 }
 
-std::optional<
-    std::vector<std::pair<ast::Identifier, std::unique_ptr<ast::Expr>>>>
+optional<vector<pair<ast::Identifier, unique_ptr<ast::Expr>>>>
 Parser::parse_field_init_list() {
-  std::vector<std::pair<ast::Identifier, std::unique_ptr<ast::Expr>>> fields;
+  vector<pair<ast::Identifier, unique_ptr<ast::Expr>>> fields;
   while (!check(TokenType::RBRACE) && !is_at_end()) {
     auto name_tok = consume(TokenType::IDENT, "field name");
     if (has_errors())
-      return std::nullopt;
+      return nullopt;
     consume(TokenType::COLON, "':'");
     if (has_errors())
-      return std::nullopt;
+      return nullopt;
     auto val = parse_expression();
     if (!val)
-      return std::nullopt;
+      return nullopt;
     consume(TokenType::COMMA, "','");
     if (has_errors())
-      return std::nullopt;
+      return nullopt;
     fields.emplace_back(name_tok.lexeme,
-                        std::make_unique<ast::Expr>(std::move(val->value)));
+                        make_unique<ast::Expr>(std::move(val->value)));
   }
   return fields;
 }
 
-std::optional<std::vector<std::unique_ptr<ast::TypeAnnot>>>
-Parser::parse_type_arg_list() {
-  std::vector<std::unique_ptr<ast::TypeAnnot>> types;
+optional<vector<unique_ptr<ast::TypeAnnot>>> Parser::parse_type_arg_list() {
+  vector<unique_ptr<ast::TypeAnnot>> types;
   while (!is_at_end()) {
     auto t = parse_type();
     if (!t)
-      return std::nullopt;
-    types.push_back(std::make_unique<ast::TypeAnnot>(std::move(t->value)));
+      return nullopt;
+    types.push_back(make_unique<ast::TypeAnnot>(std::move(t->value)));
     if (!match(TokenType::COMMA))
       break;
   }
   return types;
 }
 
-std::optional<Spanned<ast::Expr>> Parser::parse_struct_init() {
+optional<Spanned<ast::Expr>> Parser::parse_struct_init() {
   // This is called from parse_primary, handled inline there
   report_error_at_current(
       "internal: parse_struct_init should not be called directly");
-  return std::nullopt;
+  return nullopt;
 }
 
-std::optional<Spanned<ast::Expr>> Parser::parse_scope_access() {
+optional<Spanned<ast::Expr>> Parser::parse_scope_access() {
   // Union init is handled by postfix (field access / method call)
-  return std::nullopt;
+  return nullopt;
 }
 
 } // namespace shikimori

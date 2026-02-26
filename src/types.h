@@ -11,7 +11,7 @@ using namespace std;
 namespace shikimori {
 
 struct Type;
-using TypeRef = std::shared_ptr<Type>;
+using TypeRef = shared_ptr<Type>;
 
 struct TyVar {
   uint32_t id;

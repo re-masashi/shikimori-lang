@@ -3,6 +3,8 @@
 #include <cctype>
 #include <unordered_map>
 
+using namespace std;
+
 #define DUMP_SIMPLE(tkn)                                                       \
   case TokenType::tkn: {                                                       \
     os << Color::CYAN << #tkn << Color::RESET;                                 \
@@ -25,7 +27,7 @@
 
 namespace shikimori {
 
-void Token::dump(std::ostream &os) const {
+void Token::dump(ostream &os) const {
   os << "Token: ";
   switch (type) {
     MAP(DUMP_SIMPLE, TOKEN_TYPES_SIMPLE)
@@ -36,11 +38,11 @@ void Token::dump(std::ostream &os) const {
   os << Color::GRAY << " SPAN " << start << ".." << end << Color::RESET << "\n";
 }
 
-Tokenizer::Tokenizer(std::string_view source)
+Tokenizer::Tokenizer(string_view source)
     : source(source), position(0), line(1), column(1) {}
 
-std::vector<Token> Tokenizer::tokenize() {
-  std::vector<Token> tokens;
+vector<Token> Tokenizer::tokenize() {
+  vector<Token> tokens;
   while (!is_at_end()) {
     Token token = next_token();
     tokens.push_back(token);
@@ -86,7 +88,7 @@ void Tokenizer::advance() {
 }
 
 void Tokenizer::skip_whitespace() {
-  while (!is_at_end() && std::isspace(current())) {
+  while (!is_at_end() && isspace(current())) {
     advance();
   }
 }
@@ -128,8 +130,8 @@ bool Tokenizer::is_identifier_continue(char c) {
   return is_letter(c) || is_digit(c);
 }
 
-TokenType Tokenizer::get_keyword_type(std::string_view lexeme) {
-  static const std::unordered_map<std::string_view, TokenType> keywords = {
+TokenType Tokenizer::get_keyword_type(string_view lexeme) {
+  static const unordered_map<string_view, TokenType> keywords = {
       {"fn", TokenType::KW_FN},
       {"struct", TokenType::KW_STRUCT},
       {"union", TokenType::KW_UNION},
@@ -182,7 +184,7 @@ Token Tokenizer::read_identifier() {
     advance();
   }
 
-  std::string lexeme(source.substr(start_pos, position - start_pos));
+  string lexeme(source.substr(start_pos, position - start_pos));
   TokenType type = get_keyword_type(lexeme);
 
   return Token(type, lexeme, start_pos, position);
@@ -202,15 +204,15 @@ Token Tokenizer::read_number() {
              (current() == '0' || current() == '1' || current() == '_')) {
         advance();
       }
-      std::string lexeme(source.substr(start_pos, position - start_pos));
+      string lexeme(source.substr(start_pos, position - start_pos));
       Token token(TokenType::INT_LIT, lexeme, start_pos, position);
       // Strip underscores and parse
-      std::string clean;
+      string clean;
       for (size_t i = 2; i < lexeme.size(); i++) {
         if (lexeme[i] != '_')
           clean += lexeme[i];
       }
-      token.int_value = static_cast<int64_t>(std::stoull(clean, nullptr, 2));
+      token.int_value = static_cast<int64_t>(stoull(clean, nullptr, 2));
       return token;
     }
     if (next == 'x' || next == 'X') {
@@ -221,14 +223,14 @@ Token Tokenizer::read_number() {
               (current() >= 'A' && current() <= 'F') || current() == '_')) {
         advance();
       }
-      std::string lexeme(source.substr(start_pos, position - start_pos));
+      string lexeme(source.substr(start_pos, position - start_pos));
       Token token(TokenType::INT_LIT, lexeme, start_pos, position);
-      std::string clean;
+      string clean;
       for (size_t i = 2; i < lexeme.size(); i++) {
         if (lexeme[i] != '_')
           clean += lexeme[i];
       }
-      token.int_value = static_cast<int64_t>(std::stoull(clean, nullptr, 16));
+      token.int_value = static_cast<int64_t>(stoull(clean, nullptr, 16));
       return token;
     }
     if (next == 'o' || next == 'O') {
@@ -238,14 +240,14 @@ Token Tokenizer::read_number() {
              ((current() >= '0' && current() <= '7') || current() == '_')) {
         advance();
       }
-      std::string lexeme(source.substr(start_pos, position - start_pos));
+      string lexeme(source.substr(start_pos, position - start_pos));
       Token token(TokenType::INT_LIT, lexeme, start_pos, position);
-      std::string clean;
+      string clean;
       for (size_t i = 2; i < lexeme.size(); i++) {
         if (lexeme[i] != '_')
           clean += lexeme[i];
       }
-      token.int_value = static_cast<int64_t>(std::stoull(clean, nullptr, 8));
+      token.int_value = static_cast<int64_t>(stoull(clean, nullptr, 8));
       return token;
     }
   }
@@ -276,9 +278,9 @@ Token Tokenizer::read_number() {
     }
   }
 
-  std::string lexeme(source.substr(start_pos, position - start_pos));
+  string lexeme(source.substr(start_pos, position - start_pos));
   // Strip underscores for parsing
-  std::string clean;
+  string clean;
   for (char c : lexeme) {
     if (c != '_')
       clean += c;
@@ -287,9 +289,9 @@ Token Tokenizer::read_number() {
               start_pos, position);
 
   if (is_float) {
-    token.float_value = std::stod(clean);
+    token.float_value = stod(clean);
   } else {
-    token.int_value = std::stoll(clean);
+    token.int_value = stoll(clean);
   }
 
   return token;
@@ -301,7 +303,7 @@ Token Tokenizer::read_string() {
   advance(); // consume opening quote
 
   // size_t start_pos = position;
-  std::string result;
+  string result;
 
   while (!is_at_end() && current() != quote_char) {
     if (current() == '\\') {
@@ -421,7 +423,7 @@ Token Tokenizer::read_next_token() {
       advance();
       return Token(TokenType::HASH_BRACK, "#[", start_pos, position);
     }
-    return Token(TokenType::ERROR, std::string(1, ch), start_pos, position);
+    return Token(TokenType::ERROR, string(1, ch), start_pos, position);
 
   case '-':
     if (current() == '>') {
@@ -501,7 +503,7 @@ Token Tokenizer::read_next_token() {
     return Token(TokenType::UNDERSCORE, "_", start_pos, position);
 
   default:
-    return Token(TokenType::ERROR, std::string(1, ch), start_pos, position);
+    return Token(TokenType::ERROR, string(1, ch), start_pos, position);
   }
 }
 

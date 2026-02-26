@@ -9,6 +9,8 @@
 #include "span.h"
 #include "types.h"
 
+using namespace std;
+
 namespace shikimori::typed {
 
 using namespace shikimori;
@@ -49,14 +51,14 @@ struct IdentifierExpr {
 struct StructInit {
   Span span;
   Identifier name;
-  vector<std::pair<Identifier, std::unique_ptr<TypedExpr>>> fields;
+  vector<pair<Identifier, unique_ptr<TypedExpr>>> fields;
 };
 
 struct ScopeAccess {
   Span span;
   Identifier scope;
   Identifier member;
-  vector<std::unique_ptr<TypedExpr>> payload;
+  vector<unique_ptr<TypedExpr>> payload;
 };
 
 struct FieldAccess {
@@ -69,7 +71,7 @@ struct MethodCall {
   Span span;
   unique_ptr<TypedExpr> object;
   Identifier method;
-  vector<std::unique_ptr<TypedExpr>> args;
+  vector<unique_ptr<TypedExpr>> args;
 };
 
 struct IndexAccess {
@@ -81,7 +83,7 @@ struct IndexAccess {
 struct Call {
   Span span;
   unique_ptr<TypedExpr> callee;
-  vector<std::unique_ptr<TypedExpr>> args;
+  vector<unique_ptr<TypedExpr>> args;
 };
 
 struct UnaryExpr {
@@ -106,7 +108,7 @@ struct Assignment {
 struct Break {
   Span span;
   optional<Identifier> label;
-  optional<std::unique_ptr<TypedExpr>> value;
+  optional<unique_ptr<TypedExpr>> value;
 };
 
 struct Continue {
@@ -117,7 +119,7 @@ struct Continue {
 struct BuiltinCall {
   Span span;
   Identifier name;
-  vector<std::unique_ptr<TypedExpr>> args;
+  vector<unique_ptr<TypedExpr>> args;
 };
 
 struct RangeExpr {
@@ -128,7 +130,7 @@ struct RangeExpr {
 
 struct TypedBlock {
   Span span;
-  vector<std::unique_ptr<TypedStmt>> stmts;
+  vector<unique_ptr<TypedStmt>> stmts;
   TypeRef ty; // type of last expr, or unit
 };
 
@@ -167,12 +169,12 @@ struct MatchExpr {
 struct TypeInit {
   Span span;
   TypeRef ty; // resolved [8]i32 etc
-  std::vector<std::unique_ptr<TypedExpr>> fields;
+  vector<unique_ptr<TypedExpr>> fields;
 };
 
 struct ComptimeExpr {
   Span span;
-  std::unique_ptr<TypedExpr> expr;
+  unique_ptr<TypedExpr> expr;
 };
 
 struct TypedExpr {
@@ -194,7 +196,7 @@ struct LetStmt {
 
 struct ReturnStmt {
   Span span;
-  optional<std::unique_ptr<TypedExpr>> value;
+  optional<unique_ptr<TypedExpr>> value;
 };
 
 struct DeferStmt {
@@ -297,7 +299,7 @@ struct TypedExternDecl {
 };
 
 using ComptimeInner = variant<LetStmt,
-                              std::unique_ptr<TypedExpr>, // IfExpr as stmt
+                              unique_ptr<TypedExpr>, // IfExpr as stmt
                               ForStmt>;
 
 struct ComptimeStmt {

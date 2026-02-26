@@ -2,6 +2,8 @@
 
 #include <ostream>
 
+using namespace std;
+
 namespace shikimori {
 
 struct Color {
@@ -23,7 +25,7 @@ struct Color {
 
 class ColoredOstream {
 public:
-  explicit ColoredOstream(std::ostream &os) : os(os), enabled(true) {}
+  explicit ColoredOstream(ostream &os) : os(os), enabled(true) {}
 
   template <typename T> ColoredOstream &operator<<(const T &val) {
     if (enabled)
@@ -51,10 +53,10 @@ public:
     return *this;
   }
   bool is_enabled() const { return enabled; }
-  std::ostream &underlying() { return os; }
+  ostream &underlying() { return os; }
 
 private:
-  std::ostream &os;
+  ostream &os;
   bool enabled;
 };
 

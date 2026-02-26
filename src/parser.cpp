@@ -1,28 +1,29 @@
 #include "parser.h"
 
 #include <format>
+#include <utility>
 
 #include "tokenizer.hpp"
 
+using namespace std;
+
 namespace shikimori {
 
-Parser::Parser(std::string_view source, std::filesystem::path file)
+Parser::Parser(string_view source, filesystem::path file)
     : source(source), file(std::move(file)), current_pos(0) {}
 
-Parser::Parser(const std::vector<Token> &tokens, std::string_view source,
-               std::filesystem::path file)
+Parser::Parser(const vector<Token> &tokens, string_view source,
+               filesystem::path file)
     : source(source), file(std::move(file)), tokens(tokens), current_pos(0) {}
 
-void Parser::set_source(std::string_view source) { this->source = source; }
+void Parser::set_source(string_view source) { this->source = source; }
 
-void Parser::set_tokens(std::vector<Token> tokens) {
+void Parser::set_tokens(vector<Token> tokens) {
   this->tokens = std::move(tokens);
   current_pos = 0;
 }
 
-void Parser::set_file(std::filesystem::path file) {
-  this->file = std::move(file);
-}
+void Parser::set_file(filesystem::path file) { this->file = std::move(file); }
 
 const Token &Parser::current() const { return tokens[current_pos]; }
 
@@ -45,7 +46,7 @@ bool Parser::check(TokenType type) const {
   return current().type == type;
 }
 
-bool Parser::check_any(std::initializer_list<TokenType> types) const {
+bool Parser::check_any(initializer_list<TokenType> types) const {
   if (is_at_end())
     return false;
   for (auto type : types) {
@@ -62,7 +63,7 @@ bool Parser::match(TokenType type) {
   return true;
 }
 
-bool Parser::match_any(std::initializer_list<TokenType> types) {
+bool Parser::match_any(initializer_list<TokenType> types) {
   for (auto type : types) {
     if (match(type))
       return true;
@@ -113,8 +114,8 @@ Span Parser::get_span_from(size_t offset) const {
 }
 
 void Parser::report_error(const Span &span, const char *message) {
-  errors.push_back(std::format("Error at {}:{}:{}: {}", span.file.string(),
-                               span.start, span.end, message));
+  errors.push_back(format("Error at {}:{}:{}: {}", span.file.string(),
+                          span.start, span.end, message));
 }
 
 void Parser::report_error(const char *message) {
@@ -124,26 +125,26 @@ void Parser::report_error(const char *message) {
 
 void Parser::report_error_at_current(const char *message) {
   auto span = get_current_span();
-  errors.push_back(std::format("Error at {}:{}:{}: {} (got '{}')",
-                               span.file.string(), span.start, span.end,
-                               message, current().lexeme));
+  errors.push_back(format("Error at {}:{}:{}: {} (got '{}')",
+                          span.file.string(), span.start, span.end, message,
+                          current().lexeme));
 }
 
 void Parser::report_expected_but_got(const char *expected, const Token &got) {
-  errors.push_back(std::format("Error at {}:{}: Expected {} but got '{}'",
-                               file.string(), got.start, expected, got.lexeme));
+  errors.push_back(format("Error at {}:{}: Expected {} but got '{}'",
+                          file.string(), got.start, expected, got.lexeme));
 }
 
 void Parser::report_unexpected_token(const Token &token) {
-  errors.push_back(std::format("Error at {}:{}: Unexpected token '{}'",
-                               file.string(), token.start, token.lexeme));
+  errors.push_back(format("Error at {}:{}: Unexpected token '{}'",
+                          file.string(), token.start, token.lexeme));
 }
 
 void Parser::report_unexpected_token() { report_unexpected_token(current()); }
 
 bool Parser::has_errors() const { return !errors.empty(); }
 
-const std::vector<std::string> &Parser::get_errors() const { return errors; }
+const vector<string> &Parser::get_errors() const { return errors; }
 
 void Parser::clear_errors() { errors.clear(); }
 

@@ -1,55 +1,56 @@
 #include "parser.h"
-#include <format>
+#include <utility>
+
+using namespace std;
 
 namespace shikimori {
 
-std::optional<ast::Block> Parser::parse_block() {
+optional<ast::Block> Parser::parse_block() {
   size_t start = current_pos;
   consume(TokenType::LBRACE, "'{'");
   if (has_errors())
-    return std::nullopt;
+    return nullopt;
 
   ast::Block block;
   while (!check(TokenType::RBRACE) && !is_at_end()) {
     auto stmt = parse_statement();
     if (!stmt) {
       if (has_errors())
-        return std::nullopt;
+        return nullopt;
       report_unexpected_token();
       advance();
       continue;
     }
-    block.statements.push_back(
-        std::make_unique<ast::Stmt>(std::move(stmt->value)));
+    block.statements.push_back(make_unique<ast::Stmt>(std::move(stmt->value)));
   }
 
   consume(TokenType::RBRACE, "'}'");
   if (has_errors())
-    return std::nullopt;
+    return nullopt;
   block.span = get_span_for(start);
   return block;
 }
 
-std::optional<ast::Identifier> Parser::parse_label() {
+optional<ast::Identifier> Parser::parse_label() {
   // label ::= ":" IDENT
   if (!check(TokenType::COLON))
-    return std::nullopt;
+    return nullopt;
   // lookahead: colon followed by IDENT, then loop/while/for keyword
   if (peek().type != TokenType::IDENT)
-    return std::nullopt;
+    return nullopt;
   auto after_ident = peek(2).type;
   if (after_ident != TokenType::KW_LOOP && after_ident != TokenType::KW_WHILE &&
       after_ident != TokenType::KW_FOR) {
-    return std::nullopt;
+    return nullopt;
   }
   advance(); // consume ':'
   auto name_tok = consume(TokenType::IDENT, "label name");
   if (has_errors())
-    return std::nullopt;
+    return nullopt;
   return name_tok.lexeme;
 }
 
-std::optional<Spanned<ast::Stmt>> Parser::parse_statement() {
+optional<Spanned<ast::Stmt>> Parser::parse_statement() {
   // Check for labeled loops first
   if (check(TokenType::COLON) && peek().type == TokenType::IDENT) {
     auto after = peek(2).type;
@@ -79,15 +80,15 @@ std::optional<Spanned<ast::Stmt>> Parser::parse_statement() {
   return parse_expr_stmt();
 }
 
-std::optional<Spanned<ast::Stmt>> Parser::parse_let_stmt() {
+optional<Spanned<ast::Stmt>> Parser::parse_let_stmt() {
   size_t start = current_pos;
   consume(TokenType::KW_LET, "'let'");
   if (has_errors())
-    return std::nullopt;
+    return nullopt;
 
   auto name_tok = consume(TokenType::IDENT, "variable name");
   if (has_errors())
-    return std::nullopt;
+    return nullopt;
 
   ast::LetStmt let_stmt;
   let_stmt.name = name_tok.lexeme;
@@ -95,22 +96,22 @@ std::optional<Spanned<ast::Stmt>> Parser::parse_let_stmt() {
   if (match(TokenType::COLON)) {
     auto t = parse_type();
     if (!t)
-      return std::nullopt;
-    let_stmt.type = std::make_unique<ast::TypeAnnot>(std::move(t->value));
+      return nullopt;
+    let_stmt.type = make_unique<ast::TypeAnnot>(std::move(t->value));
   }
 
   consume(TokenType::ASSIGN, "'='");
   if (has_errors())
-    return std::nullopt;
+    return nullopt;
 
   auto init = parse_expression();
   if (!init)
-    return std::nullopt;
-  let_stmt.init = std::make_unique<ast::Expr>(std::move(init->value));
+    return nullopt;
+  let_stmt.init = make_unique<ast::Expr>(std::move(init->value));
 
   consume(TokenType::SEMICOLON, "';'");
   if (has_errors())
-    return std::nullopt;
+    return nullopt;
 
   let_stmt.span = get_span_for(start);
   ast::Stmt stmt;
@@ -119,24 +120,24 @@ std::optional<Spanned<ast::Stmt>> Parser::parse_let_stmt() {
   return Spanned<ast::Stmt>(std::move(stmt), stmt.span);
 }
 
-std::optional<Spanned<ast::Stmt>> Parser::parse_return_stmt() {
+optional<Spanned<ast::Stmt>> Parser::parse_return_stmt() {
   size_t start = current_pos;
   consume(TokenType::KW_RETURN, "'return'");
   if (has_errors())
-    return std::nullopt;
+    return nullopt;
 
   ast::ReturnStmt ret;
 
   if (!check(TokenType::SEMICOLON)) {
     auto expr = parse_expression();
     if (!expr)
-      return std::nullopt;
-    ret.value = std::make_unique<ast::Expr>(std::move(expr->value));
+      return nullopt;
+    ret.value = make_unique<ast::Expr>(std::move(expr->value));
   }
 
   consume(TokenType::SEMICOLON, "';'");
   if (has_errors())
-    return std::nullopt;
+    return nullopt;
 
   ret.span = get_span_for(start);
   ast::Stmt stmt;
@@ -145,11 +146,11 @@ std::optional<Spanned<ast::Stmt>> Parser::parse_return_stmt() {
   return Spanned<ast::Stmt>(std::move(stmt), stmt.span);
 }
 
-std::optional<Spanned<ast::Stmt>> Parser::parse_defer_stmt() {
+optional<Spanned<ast::Stmt>> Parser::parse_defer_stmt() {
   size_t start = current_pos;
   consume(TokenType::KW_DEFER, "'defer'");
   if (has_errors())
-    return std::nullopt;
+    return nullopt;
 
   ast::DeferStmt defer;
 
@@ -157,7 +158,7 @@ std::optional<Spanned<ast::Stmt>> Parser::parse_defer_stmt() {
     // defer block
     auto blk = parse_block();
     if (!blk)
-      return std::nullopt;
+      return nullopt;
 
     // Wrap the block as an ExprStmt containing an... actually,
     // DeferStmt holds a Stmt. A block by itself isn't a Stmt in our AST.
@@ -214,7 +215,7 @@ std::optional<Spanned<ast::Stmt>> Parser::parse_defer_stmt() {
     ast::Expr true_expr;
     true_expr.span = blk->span;
     true_expr.value = ast::BoolLiteral{blk->span, true};
-    branch.condition = std::make_unique<ast::Expr>(std::move(true_expr));
+    branch.condition = make_unique<ast::Expr>(std::move(true_expr));
     branch.body = std::move(*blk);
     branch.span = branch.body.span;
     if_expr.branches.push_back(std::move(branch));
@@ -225,20 +226,20 @@ std::optional<Spanned<ast::Stmt>> Parser::parse_defer_stmt() {
     wrapper.value = std::move(if_expr);
 
     ast::ExprStmt es;
-    es.expr = std::make_unique<ast::Expr>(std::move(wrapper));
+    es.expr = make_unique<ast::Expr>(std::move(wrapper));
     es.span = get_span_for(start);
 
     ast::Stmt inner_stmt;
     inner_stmt.span = es.span;
     inner_stmt.value = std::move(es);
 
-    defer.stmt = std::make_unique<ast::Stmt>(std::move(inner_stmt));
+    defer.stmt = make_unique<ast::Stmt>(std::move(inner_stmt));
   } else {
     // defer expr_stmt
     auto es = parse_expr_stmt();
     if (!es)
-      return std::nullopt;
-    defer.stmt = std::make_unique<ast::Stmt>(std::move(es->value));
+      return nullopt;
+    defer.stmt = make_unique<ast::Stmt>(std::move(es->value));
   }
 
   defer.span = get_span_for(start);
@@ -248,21 +249,21 @@ std::optional<Spanned<ast::Stmt>> Parser::parse_defer_stmt() {
   return Spanned<ast::Stmt>(std::move(stmt), stmt.span);
 }
 
-std::optional<Spanned<ast::Stmt>> Parser::parse_loop_stmt() {
+optional<Spanned<ast::Stmt>> Parser::parse_loop_stmt() {
   size_t start = current_pos;
 
-  std::optional<ast::Identifier> label;
+  optional<ast::Identifier> label;
   auto lbl = parse_label();
   if (lbl)
     label = *lbl;
 
   consume(TokenType::KW_LOOP, "'loop'");
   if (has_errors())
-    return std::nullopt;
+    return nullopt;
 
   auto body = parse_block();
   if (!body)
-    return std::nullopt;
+    return nullopt;
 
   ast::LoopStmt loop;
   loop.label = label;
@@ -275,29 +276,29 @@ std::optional<Spanned<ast::Stmt>> Parser::parse_loop_stmt() {
   return Spanned<ast::Stmt>(std::move(stmt), stmt.span);
 }
 
-std::optional<Spanned<ast::Stmt>> Parser::parse_while_stmt() {
+optional<Spanned<ast::Stmt>> Parser::parse_while_stmt() {
   size_t start = current_pos;
 
-  std::optional<ast::Identifier> label;
+  optional<ast::Identifier> label;
   auto lbl = parse_label();
   if (lbl)
     label = *lbl;
 
   consume(TokenType::KW_WHILE, "'while'");
   if (has_errors())
-    return std::nullopt;
+    return nullopt;
 
   auto cond = parse_expression();
   if (!cond)
-    return std::nullopt;
+    return nullopt;
 
   auto body = parse_block();
   if (!body)
-    return std::nullopt;
+    return nullopt;
 
   ast::WhileStmt ws;
   ws.label = label;
-  ws.condition = std::make_unique<ast::Expr>(std::move(cond->value));
+  ws.condition = make_unique<ast::Expr>(std::move(cond->value));
   ws.body = std::move(*body);
   ws.span = get_span_for(start);
 
@@ -307,38 +308,38 @@ std::optional<Spanned<ast::Stmt>> Parser::parse_while_stmt() {
   return Spanned<ast::Stmt>(std::move(stmt), stmt.span);
 }
 
-std::optional<Spanned<ast::Stmt>> Parser::parse_for_stmt() {
+optional<Spanned<ast::Stmt>> Parser::parse_for_stmt() {
   size_t start = current_pos;
 
-  std::optional<ast::Identifier> label;
+  optional<ast::Identifier> label;
   auto lbl = parse_label();
   if (lbl)
     label = *lbl;
 
   consume(TokenType::KW_FOR, "'for'");
   if (has_errors())
-    return std::nullopt;
+    return nullopt;
 
   auto var_tok = consume(TokenType::IDENT, "loop variable name");
   if (has_errors())
-    return std::nullopt;
+    return nullopt;
 
   consume(TokenType::KW_IN, "'in'");
   if (has_errors())
-    return std::nullopt;
+    return nullopt;
 
   auto iterable = parse_expression();
   if (!iterable)
-    return std::nullopt;
+    return nullopt;
 
   auto body = parse_block();
   if (!body)
-    return std::nullopt;
+    return nullopt;
 
   ast::ForStmt fs;
   fs.label = label;
   fs.var = var_tok.lexeme;
-  fs.iterable = std::make_unique<ast::Expr>(std::move(iterable->value));
+  fs.iterable = make_unique<ast::Expr>(std::move(iterable->value));
   fs.body = std::move(*body);
   fs.span = get_span_for(start);
 
@@ -348,30 +349,30 @@ std::optional<Spanned<ast::Stmt>> Parser::parse_for_stmt() {
   return Spanned<ast::Stmt>(std::move(stmt), stmt.span);
 }
 
-std::optional<Spanned<ast::Stmt>> Parser::parse_comptime_stmt() {
+optional<Spanned<ast::Stmt>> Parser::parse_comptime_stmt() {
   size_t start = current_pos;
   consume(TokenType::KW_COMPTIME, "'comptime'");
   if (has_errors())
-    return std::nullopt;
+    return nullopt;
 
   ast::ComptimeStmt cs;
 
   if (check(TokenType::KW_LET)) {
     auto inner = parse_let_stmt();
     if (!inner)
-      return std::nullopt;
-    cs.stmt = std::make_unique<ast::Stmt>(std::move(inner->value));
+      return nullopt;
+    cs.stmt = make_unique<ast::Stmt>(std::move(inner->value));
   } else if (check(TokenType::KW_FOR)) {
     auto inner = parse_for_stmt();
     if (!inner)
-      return std::nullopt;
-    cs.stmt = std::make_unique<ast::Stmt>(std::move(inner->value));
+      return nullopt;
+    cs.stmt = make_unique<ast::Stmt>(std::move(inner->value));
   } else {
     // expr_stmt (e.g. comptime if ...)
     auto inner = parse_expr_stmt();
     if (!inner)
-      return std::nullopt;
-    cs.stmt = std::make_unique<ast::Stmt>(std::move(inner->value));
+      return nullopt;
+    cs.stmt = make_unique<ast::Stmt>(std::move(inner->value));
   }
 
   cs.span = get_span_for(start);
@@ -381,18 +382,18 @@ std::optional<Spanned<ast::Stmt>> Parser::parse_comptime_stmt() {
   return Spanned<ast::Stmt>(std::move(stmt), stmt.span);
 }
 
-std::optional<Spanned<ast::Stmt>> Parser::parse_expr_stmt() {
+optional<Spanned<ast::Stmt>> Parser::parse_expr_stmt() {
   size_t start = current_pos;
   auto expr = parse_expression();
   if (!expr)
-    return std::nullopt;
+    return nullopt;
 
   // Semicolons are not required when:
   // 1. if/match expressions used as statements (they end with '}')
   // 2. The expression is a trailing value in a block (followed directly by '}')
   bool needs_semi = true;
-  if (std::holds_alternative<ast::IfExpr>(expr->value.value) ||
-      std::holds_alternative<ast::MatchExpr>(expr->value.value)) {
+  if (holds_alternative<ast::IfExpr>(expr->value.value) ||
+      holds_alternative<ast::MatchExpr>(expr->value.value)) {
     needs_semi = check(TokenType::SEMICOLON);
   } else if (check(TokenType::RBRACE)) {
     // Trailing expression in a block (the block's value)
@@ -402,11 +403,11 @@ std::optional<Spanned<ast::Stmt>> Parser::parse_expr_stmt() {
   if (needs_semi) {
     consume(TokenType::SEMICOLON, "';'");
     if (has_errors())
-      return std::nullopt;
+      return nullopt;
   }
 
   ast::ExprStmt es;
-  es.expr = std::make_unique<ast::Expr>(std::move(expr->value));
+  es.expr = make_unique<ast::Expr>(std::move(expr->value));
   es.span = get_span_for(start);
 
   ast::Stmt stmt;
