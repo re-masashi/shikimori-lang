@@ -42,3 +42,20 @@ add_executable(shikimori
 target_include_directories(shikimori PRIVATE
     ${PROJECT_SOURCE_DIR}/src
 )
+
+if(BUILD_TESTS)
+    enable_testing()
+
+    add_executable(test_runner
+        tests/test_main.cpp
+        tests/tokenizer_test.cpp
+        src/parser/tokenizer.cpp
+    )
+
+    target_include_directories(test_runner PRIVATE 
+        ${PROJECT_SOURCE_DIR}/src
+        ${PROJECT_SOURCE_DIR}/tests
+    )
+
+    add_test(NAME test_runner COMMAND test_runner)
+endif()

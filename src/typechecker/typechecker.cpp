@@ -184,9 +184,7 @@ void Typechecker::collect_extern(const ast::ExternDecl &decl) {
   functions[decl.name] = fn_ty;
 }
 
-TypeRef Typechecker::resolve_type(const ast::TypeAnnot&) {
-  return nullptr;
-}
+TypeRef Typechecker::resolve_type(const ast::TypeAnnot &) { return nullptr; }
 
 void Typechecker::resolve_use(const ast::UseDecl &use, string file_path) {
   import_resolver.resolve_use(use, file_path);
