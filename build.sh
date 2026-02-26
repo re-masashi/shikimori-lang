@@ -4,7 +4,6 @@ if [[ $1 == "fmt" ]]; then
 fi
 
 if [[ $1 == "lint" ]]; then
-  cmake -S . -B build -G Ninja -DCMAKE_CXX_CLANG_TIDY="clang-tidy;--quiet" && cmake --build build
   exit
 fi
 
@@ -24,7 +23,7 @@ if [[ $1 == "clean" ]]; then
   rm -rf build
 fi
 
-cmake -S . -B build -G Ninja -DCMAKE_CXX_CLANG_TIDY="" && cmake --build build
+cmake -S . -B build -G Ninja -DCMAKE_EXPORT_COMPILE_COMMANDS=ON && cmake --build build
 
 if [[ $? -ne 0 ]]; then
   echo "Build failed"
