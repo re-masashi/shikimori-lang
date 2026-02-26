@@ -2,5 +2,4 @@
 
 Syslang
 
-TODO:
-fix interface type syntax
+
