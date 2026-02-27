@@ -63,10 +63,9 @@ struct InterfaceConstraint {
 };
 
 struct Type {
-  // Slice, Pointer, Option, etc are named
   variant<TyVar, ETVar, TyNamed, FnTy, ForAll, TyArray,
           InterfaceConstraint>
-      ty; // have to add forall here
+      ty;
   Span span;
 };
 

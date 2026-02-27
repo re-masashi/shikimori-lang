@@ -50,6 +50,7 @@ vector<Token> Tokenizer::tokenize() {
       break;
     }
   }
+  tokens.push_back(Token(TokenType::EOF_TOKEN, "", position, position));
   return tokens;
 }
 

@@ -41,6 +41,9 @@ public:
   map<uint32_t, TypeRef> ty_solutions; // solved ETVars
   uint32_t next_id = 0;
 
+  map<string, uint32_t>
+      current_type_vars; // active type vars in generic context
+
   vector<map<string, TypeRef>> scopes;
 
   TypeRef current_return_type = nullptr;

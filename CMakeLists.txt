@@ -49,7 +49,16 @@ if(BUILD_TESTS)
     add_executable(test_runner
         tests/test_main.cpp
         tests/tokenizer_test.cpp
+        tests/typechecker_test.cpp
         src/parser/tokenizer.cpp
+        src/parser/parser.cpp
+        src/parser/parser_decl.cpp
+        src/parser/parser_stmt.cpp
+        src/parser/parser_expr.cpp
+        src/typechecker/typechecker.cpp
+        src/typechecker/import_resolver.cpp
+        src/ast/ast_printer.cpp
+        src/span.cpp
     )
 
     target_include_directories(test_runner PRIVATE 
