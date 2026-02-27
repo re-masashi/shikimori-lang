@@ -63,6 +63,7 @@ public:
 
   TypeRef resolve_type(const ast::TypeAnnot &annot);
 
+  typed::TypedProgram run(const ast::Program &program);
   typed::TypedProgram check(const ast::Program &program);
   typed::TypedFnDecl check_fn(const ast::FnDecl &decl);
   typed::TypedBlock check_block(const ast::Block &block);

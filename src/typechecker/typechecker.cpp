@@ -1,7 +1,11 @@
-#include "typechecker.h"
+#include <utility>
+#include <variant>
+
 #include "ast/ast.h"
 #include "ast/typedast.h"
-#include <variant>
+#include "typechecker.h"
+
+#include "utils.h"
 
 using namespace typed;
 
@@ -344,6 +348,29 @@ TypeRef Typechecker::resolve_type(const ast::TypeAnnot &annot) {
 
 void Typechecker::resolve_use(const ast::UseDecl &use, string file_path) {
   import_resolver.resolve_use(use, file_path);
+}
+
+typed::TypedProgram Typechecker::run(const ast::Program &program) {
+  collect(program);
+  return check(program);
+}
+
+typed::TypedProgram Typechecker::check(const ast::Program &program) {
+  typed::TypedProgram result;
+  for (auto &declaration : program.declarations) {
+    std::visit(overload{
+                   [&](const ast::FnDecl &) {},
+                   [&](const ast::StructDecl &) {},
+                   [&](const ast::UnionDecl &) {},
+                   [&](const ast::InterfaceDecl &) {},
+                   [&](const ast::ExternDecl &) {},
+                   [&](const ast::UseDecl &) {},
+                   [&](const ast::MacroDecl &) {},
+                   [&](const ast::ComptimeStmt &) {},
+               },
+               declaration.value);
+  }
+  return result;
 }
 
 } // namespace shikimori
