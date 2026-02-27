@@ -60,7 +60,7 @@ TEST_CASE("Tokenizer: String literals") {
 }
 
 TEST_CASE("Tokenizer: Operators") {
-  Tokenizer tokenizer("+: * / = == != < > <= >=");
+  Tokenizer tokenizer("+ - * / = == != < > <= >=");
   auto tokens = tokenizer.tokenize();
 
   REQUIRE(tokens.size() >= 10);
