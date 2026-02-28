@@ -1,0 +1,20 @@
+fn test_usize_casts() {
+    let x = 100 as usize;
+    
+    let a = x as i8;
+    let b = x as i16;
+    let c = x as i32;
+    let d = x as i64;
+    
+    let e = x as u8;
+    let f = x as u16;
+    let g = x as u32;
+    let h = x as u64;
+    
+    let i = x as f32;
+    let j = x as f64;
+}
+
+fn main() {
+    test_usize_casts();
+}

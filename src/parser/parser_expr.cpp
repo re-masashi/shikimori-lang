@@ -347,6 +347,20 @@ optional<Spanned<ast::Expr>> Parser::parse_postfix() {
       expr.span = call.span;
       expr.value = std::move(call);
       left = Spanned<ast::Expr>(std::move(expr), expr.span);
+    } else if (match(TokenType::KW_AS)) {
+      // type cast: expr as Type
+      auto type = parse_type();
+      if (!type)
+        return nullopt;
+
+      ast::AsExpr as_expr;
+      as_expr.expr = make_unique<ast::Expr>(std::move(left->value));
+      as_expr.type = make_unique<ast::TypeAnnot>(std::move(type->value));
+      as_expr.span = type->span;
+      ast::Expr expr;
+      expr.span = as_expr.span;
+      expr.value = std::move(as_expr);
+      left = Spanned<ast::Expr>(std::move(expr), expr.span);
     } else {
       break;
     }

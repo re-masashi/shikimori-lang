@@ -113,6 +113,7 @@ postfix_op      ::= "." IDENT                          (* field access *)
                   | "#[" expr "]"                      (* index *)
                   | "(" [ arg_list ] ")"               (* call *)
                   | "!" "(" [ macro_arg_list ] ")"   (* macro call *)
+                  | "as" type                          (* type cast *)
 
 macro_arg_list ::= expr { "," expr }
 

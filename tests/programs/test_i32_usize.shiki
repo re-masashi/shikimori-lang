@@ -1,0 +1,7 @@
+fn test_i32_to_usize() {
+    let x = 42 as usize;
+}
+
+fn main() {
+    test_i32_to_usize();
+}

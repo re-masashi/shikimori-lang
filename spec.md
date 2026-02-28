@@ -7,7 +7,7 @@ u8  u16  u32  u64
 f32 f64
 bool
 usize
-str   // fat pointer { *u8, len }
+string   // fat pointer { *u8, len }
 ```
 
 ---

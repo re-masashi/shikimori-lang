@@ -893,6 +893,155 @@ static TypeRef make_primitive(const string &name, Span span = Span{}) {
   return ty;
 }
 
+// Helper to get the primitive type name if it's a primitive
+static optional<string> get_primitive_name(const TypeRef &ty) {
+  if (auto *named = std::get_if<TyNamed>(&ty->ty)) {
+    if (named->kind == Primitive) {
+      return named->name;
+    }
+  }
+  return nullopt;
+}
+
+// Check if type is a numeric primitive (int or float)
+static bool is_numeric_type(const TypeRef &ty) {
+  auto name = get_primitive_name(ty);
+  if (!name)
+    return false;
+  return *name == "i8" || *name == "i16" || *name == "i32" || *name == "i64" ||
+         *name == "u8" || *name == "u16" || *name == "u32" || *name == "u64" ||
+         *name == "usize" || *name == "f32" || *name == "f64";
+}
+
+// Check if type is an integer primitive (not float)
+static bool is_integer_type(const TypeRef &ty) {
+  auto name = get_primitive_name(ty);
+  if (!name)
+    return false;
+  return *name == "i8" || *name == "i16" || *name == "i32" || *name == "i64" ||
+         *name == "u8" || *name == "u16" || *name == "u32" || *name == "u64" ||
+         *name == "usize";
+}
+
+// Check if type is a float primitive
+static bool is_float_type(const TypeRef &ty) {
+  auto name = get_primitive_name(ty);
+  if (!name)
+    return false;
+  return *name == "f32" || *name == "f64";
+}
+
+// Check if a cast from src_ty to dst_ty is allowed
+// Returns true if the cast is permitted, false otherwise
+static bool is_cast_allowed(const TypeRef &src_ty, const TypeRef &dst_ty,
+                            Span /*span*/) {
+  // Same type - always allowed
+  // For simplicity, we compare primitive names
+  auto src_name = get_primitive_name(src_ty);
+  auto dst_name = get_primitive_name(dst_ty);
+
+  // Numeric to numeric casts are allowed
+  if (is_numeric_type(src_ty) && is_numeric_type(dst_ty)) {
+    return true;
+  }
+
+  // Integer to float casts are allowed
+  if (is_integer_type(src_ty) && is_float_type(dst_ty)) {
+    return true;
+  }
+
+  // Float to integer casts are allowed (with potential precision loss)
+  if (is_float_type(src_ty) && is_integer_type(dst_ty)) {
+    return true;
+  }
+
+  // Bool to integer casts are allowed
+  if (src_name == "bool" && is_integer_type(dst_ty)) {
+    return true;
+  }
+
+  // Integer to bool casts are allowed
+  if (is_integer_type(src_ty) && dst_name == "bool") {
+    return true;
+  }
+
+  // String to string (identity)
+  if (src_name == "string" && dst_name == "string") {
+    return true;
+  }
+
+  // String to *u8 (string to pointer)
+  // This is safe
+  if (src_name == "string") {
+    if (auto *dst_named = std::get_if<TyNamed>(&dst_ty->ty)) {
+      if (dst_named->kind == Pointer) {
+        if (dst_named->args.size() == 1) {
+          auto inner_name = get_primitive_name(dst_named->args[0]);
+          if (inner_name == "u8") {
+            return true;
+          }
+        }
+      }
+    }
+  }
+
+  // Note: *u8 as string is NOT allowed. We can't reconstruct the length
+  // from a thin pointer. String = {*u8, len} fat pointer.
+
+  // Pointer to pointer casts (for now, only same pointer type or to usize)
+  if (auto *src_named = std::get_if<TyNamed>(&src_ty->ty)) {
+    if (src_named->kind == Pointer) {
+      if (dst_name == "usize") {
+        return true; // pointer to usize
+      }
+      if (auto *dst_named = std::get_if<TyNamed>(&dst_ty->ty)) {
+        if (dst_named->kind == Pointer) {
+          return true; // pointer to pointer (unsafe, but allowed)
+        }
+      }
+    }
+  }
+
+  // usize to pointer casts
+  if (src_name == "usize") {
+    if (auto *dst_named = std::get_if<TyNamed>(&dst_ty->ty)) {
+      if (dst_named->kind == Pointer) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+// Helper to get a string representation of a type for error messages
+static string type_to_string(const TypeRef &ty) {
+  if (!ty)
+    return "unknown";
+
+  return std::visit(
+      [](auto &&arg) -> string {
+        using T = std::decay_t<decltype(arg)>;
+        if constexpr (std::is_same_v<T, TyVar>) {
+          return "type var " + arg.name;
+        } else if constexpr (std::is_same_v<T, ETVar>) {
+          return "type var " + arg.name;
+        } else if constexpr (std::is_same_v<T, TyNamed>) {
+          return arg.name;
+        } else if constexpr (std::is_same_v<T, FnTy>) {
+          return "function";
+        } else if constexpr (std::is_same_v<T, ForAll>) {
+          return "generic";
+        } else if constexpr (std::is_same_v<T, TyArray>) {
+          return "array";
+        } else if constexpr (std::is_same_v<T, TyInterfaceObj>) {
+          return "interface object";
+        }
+        return "unknown";
+      },
+      ty->ty);
+}
+
 typed::TypedExpr Typechecker::check_call(const ast::Call &call, Span span) {
   auto callee = check_expr(*call.callee);
   auto callee_ty = apply_solutions(callee.ty);
@@ -2195,6 +2344,29 @@ typed::TypedExpr Typechecker::check_expr(const ast::Expr &expr) {
 
         } else if constexpr (std::is_same_v<T, ast::ComptimeExpr>) {
           throw TypeError("comptime expressions not implemented", e.span);
+
+        } else if constexpr (std::is_same_v<T, ast::AsExpr>) {
+          // Type cast expression: expr as Type
+          auto checked_expr = check_expr(*e.expr);
+          auto target_ty = resolve_type(*e.type);
+          auto src_ty = apply_solutions(checked_expr.ty);
+          auto resolved_target = apply_solutions(target_ty);
+
+          // Check if the cast is allowed
+          if (!is_cast_allowed(src_ty, resolved_target, e.span)) {
+            auto src_str = type_to_string(src_ty);
+            auto dst_str = type_to_string(resolved_target);
+            throw TypeError("cannot cast from " + src_str + " to " + dst_str,
+                            e.span);
+          }
+
+          auto result = make_shared<typed::TypedExpr>();
+          result->span = e.span;
+          result->ty = resolved_target;
+          result->value = typed::AsExpr{
+              e.span, make_unique<typed::TypedExpr>(std::move(checked_expr)),
+              resolved_target};
+          return std::move(*result);
         }
 
         throw TypeError("unhandled expression form", expr.span);

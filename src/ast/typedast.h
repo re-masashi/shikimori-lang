@@ -181,6 +181,12 @@ struct TypeInit {
   vector<unique_ptr<TypedExpr>> fields;
 };
 
+struct AsExpr {
+  Span span;
+  unique_ptr<TypedExpr> expr;
+  TypeRef target_ty; // the type being cast to
+};
+
 struct ComptimeExpr {
   Span span;
   unique_ptr<TypedExpr> expr;
@@ -193,7 +199,7 @@ struct TypedExpr {
           IdentifierExpr, StructInit, UnionVariantInit, ScopeAccess,
           FieldAccess, MethodCall, IndexAccess, Call, UnaryExpr, BinaryExpr,
           Assignment, IfExpr, MatchExpr, Break, Continue, BuiltinCall,
-          RangeExpr, TypeInit>
+          RangeExpr, TypeInit, AsExpr>
       value;
 };
 

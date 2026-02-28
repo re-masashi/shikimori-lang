@@ -505,6 +505,23 @@ static void dump_expr(const ast::Expr &expr, ostream &os) {
             indent_level--;
           }
           indent_level--;
+        } else if constexpr (is_same_v<T, ast::AsExpr>) {
+          indent(os);
+          os << Color::MAGENTA << "AsExpr" << Color::RESET;
+          print_span(os, arg.span);
+          os << "\n";
+          indent_level++;
+          indent(os);
+          os << Color::GRAY << "expr:" << Color::RESET << "\n";
+          indent_level++;
+          dump_expr(*arg.expr, os);
+          indent_level--;
+          indent(os);
+          os << Color::GRAY << "type:" << Color::RESET << "\n";
+          indent_level++;
+          dump_type(*arg.type, os);
+          indent_level--;
+          indent_level--;
         }
       },
       expr.value);

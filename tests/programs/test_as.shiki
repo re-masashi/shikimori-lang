@@ -1,0 +1,36 @@
+fn test_numeric_casts() {
+    let a = 42 as i64;
+    let b = 100 as f64;
+    let c = 3.14 as i32;
+    let d = 2.71 as f32;
+    let e = 10 as u32;
+    let f = 255 as i32;
+}
+
+fn test_bool_casts() {
+    let a = true as i32;
+    let b = false as i64;
+    
+    let c = 1 as bool;
+    let d = 0 as bool;
+}
+
+fn test_pointer_casts() {
+    let x = 100;
+    let ptr = &x;
+    
+    let addr = ptr as usize;
+    
+    let ptr2 = addr as *i32;
+}
+
+fn test_string_cast() {
+    let s = "hello" as string;
+}
+
+fn main() {
+    test_numeric_casts();
+    test_bool_casts();
+    test_pointer_casts();
+    test_string_cast();
+}

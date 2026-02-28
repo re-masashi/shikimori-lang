@@ -1,0 +1,66 @@
+fn test_int_to_int() {
+    let a = 10 as i8;
+    let b = 100 as i16;
+    let c = 1000 as i32;
+    let d = 10000 as i64;
+    
+    let e = 10 as u8;
+    let f = 100 as u16;
+    let g = 1000 as u32;
+    let h = 10000 as u64;
+}
+
+fn test_int_to_float() {
+    let a = 42 as f32;
+    let b = 100 as f64;
+}
+
+fn test_float_to_int() {
+    let a = 3.14 as i32;
+    let b = 2.71 as i64;
+    let c = 1.414 as u32;
+}
+
+fn test_float_to_float() {
+    let a = 3.14159 as f32;
+    let b = 2.718 as f64;
+}
+
+fn test_bool_conversions() {
+    let a = true as i8;
+    let b = false as i32;
+    let c = true as u64;
+    
+    let d = 0 as bool;
+    let e = 1 as bool;
+    let f = 42 as bool;
+}
+
+fn test_pointer_conversions() {
+    let x = 42;
+    let ptr = &x;
+    
+    let addr = ptr as usize;
+    let ptr2 = addr as *i32;
+    let ptr3 = ptr as *u8;
+}
+
+fn test_string_identity() {
+    let s = "test" as string;
+}
+
+fn test_chained_casts() {
+    let a = (42 as i64) as i32;
+    let b = (3.14 as f64) as i32;
+}
+
+fn main() {
+    test_int_to_int();
+    test_int_to_float();
+    test_float_to_int();
+    test_float_to_float();
+    test_bool_conversions();
+    test_pointer_conversions();
+    test_string_identity();
+    test_chained_casts();
+}

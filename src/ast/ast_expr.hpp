@@ -235,13 +235,19 @@ struct TypeInit {
   vector<pair<Identifier, unique_ptr<Expr>>> fields;
 };
 
+struct AsExpr {
+  Span span;
+  unique_ptr<Expr> expr;
+  unique_ptr<TypeAnnot> type;
+};
+
 struct Expr {
   Span span;
   variant<IntLiteral, FloatLiteral, BoolLiteral, StringLiteral, NullLiteral,
           IdentifierExpr, GenericIdent, StructInit, ScopeAccess, FieldAccess,
           MethodCall, IndexAccess, Call, UnaryExpr, BinaryExpr, Assignment,
           IfExpr, MatchExpr, Break, Continue, ComptimeExpr, BuiltinCall,
-          RangeExpr, TypeInit>
+          RangeExpr, TypeInit, AsExpr>
       value;
 };
 

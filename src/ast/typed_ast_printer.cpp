@@ -549,6 +549,22 @@ static void dump_expr_inner(const auto &arg, ostream &os, const TypeRef &ty) {
       typed_indent_level--;
     }
     typed_indent_level--;
+  } else if constexpr (is_same_v<T, typed::AsExpr>) {
+    typed_indent(os);
+    os << Color::MAGENTA << "AsExpr" << Color::RESET;
+    print_span(os, arg.span);
+    os << "\n";
+    typed_indent_level++;
+    typed_indent(os);
+    os << Color::GRAY << "expr:" << Color::RESET << "\n";
+    typed_indent_level++;
+    dump_expr(*arg.expr, os);
+    typed_indent_level--;
+    typed_indent(os);
+    os << Color::GRAY << "target_ty:" << Color::RESET << " ";
+    dump_type(arg.target_ty, os);
+    typed_indent_level--;
+    typed_indent_level--;
   } else if constexpr (is_same_v<T, typed::ComptimeExpr>) {
     typed_indent(os);
     os << Color::CYAN << "ComptimeExpr" << Color::RESET;
