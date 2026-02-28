@@ -1,6 +1,7 @@
 #include "import_resolver.h"
 #include <cstdlib>
 #include <filesystem>
+#include <iostream>
 
 namespace shikimori {
 
@@ -19,19 +20,35 @@ void ImportResolver::collect_recursive(const ast::Program &program) {
 }
 
 void ImportResolver::collect_from_file(const string &path) {
+  for (const auto &visited : import_stack) {
+    if (visited == path) {
+      std::cerr << "Warning: circular import detected" << std::endl;
+      std::cerr << "Import chain: ";
+      for (const auto &p : import_stack) {
+        std::cerr << p << " -> ";
+      }
+      std::cerr << path << std::endl;
+      return;
+    }
+  }
+
   if (visited_paths.contains(path)) {
     return;
   }
   visited_paths.insert(path);
+  import_stack.push_back(path);
 
   auto program = parse_file(path);
   if (!program) {
+    import_stack.pop_back();
     return;
   }
 
   resolved_paths.push_back(path);
   programs.emplace(path, make_unique<ast::Program>(std::move(*program)));
   collect_recursive(*program);
+
+  import_stack.pop_back();
 }
 
 optional<string> ImportResolver::resolve_use(const ast::UseDecl &use,
@@ -72,14 +89,14 @@ string ImportResolver::resolve_path(const string &path,
   const char *home_env = getenv("HOME");
   string home = home_env ? home_env : "/root";
 
-  fs::path shikimori_home = fs::path(home) / ".shiki";
+  fs::path shikimori_home = fs::path(home) / ".shikimori";
 
   if (path.starts_with("std/")) {
-    return (shikimori_home / path).string();
+    return (shikimori_home / path / ".shiki").string();
   }
 
   if (path.starts_with("core/")) {
-    return (shikimori_home / path).string();
+    return (shikimori_home / path / ".shiki").string();
   }
 
   fs::path current_dir = fs::path(current_file).parent_path();
@@ -87,9 +104,7 @@ string ImportResolver::resolve_path(const string &path,
 
   if (import_path.is_relative() && !path.starts_with("./") &&
       !path.starts_with("../") && !path.starts_with("..")) {
-    return (shikimori_home / "packages" / import_path)
-        .replace_extension(".shiki")
-        .string();
+    return (shikimori_home / "packages" / import_path / ".shiki").string();
   }
 
   fs::path full_path;
@@ -106,12 +121,12 @@ string ImportResolver::resolve_path(const string &path,
     for (size_t j = 0; j < dots - 1; j++) {
       temp = temp.parent_path();
     }
-    full_path = temp / path.substr(dots);
+    full_path = temp / path.substr(dots) / ".shiki";
   } else {
-    full_path = current_dir / path;
+    full_path = current_dir / path / ".shiki";
   }
 
-  return full_path.replace_extension(".shiki").string();
+  return full_path.string();
 }
 
 } // namespace shikimori

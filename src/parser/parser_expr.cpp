@@ -594,7 +594,7 @@ optional<Spanned<ast::Expr>> Parser::parse_primary() {
 
       // Check if followed by { for struct init with generics
       if (check(TokenType::LBRACE) && looks_like_struct_init_body(*this)) {
-        // Don't advance past '{' yet - parse_field_init_list doesn't expect it
+        // Don't advance past '{' yet. Parse_field_init_list doesn't expect it
         advance(); // consume '{'
         ast::StructInit si;
         si.name = name_tok.lexeme;
@@ -959,18 +959,35 @@ optional<Spanned<ast::Expr>> Parser::parse_builtin_call() {
   ast::BuiltinCall bc;
   bc.name = name_tok.lexeme;
 
+  // Parse type arguments first (for builtins like @sizeof, @typeid, etc.)
+  // Type args come before expression args
   if (!check(TokenType::RPAREN)) {
     while (!check(TokenType::RPAREN) && !is_at_end()) {
-      if (is_primitive_keyword(current().type)) {
-        auto tok = current();
+      // Try to parse as type first
+      if (is_primitive_keyword(current().type) ||
+          current().type == TokenType::IDENT) {
+        // Peek ahead to see if this is a type or expression
+        // If it's followed by comma or paren, it's a type
+        size_t peek_pos = current_pos;
         advance();
-        ast::IdentifierExpr ident;
-        ident.name = tok.lexeme;
-        ident.span = Span(tok.start, tok.end, file);
-        ast::Expr arg_expr;
-        arg_expr.span = ident.span;
-        arg_expr.value = std::move(ident);
-        bc.args.push_back(make_unique<ast::Expr>(std::move(arg_expr)));
+        bool is_type = false;
+        if (check(TokenType::COMMA) || check(TokenType::RPAREN)) {
+          is_type = true;
+        }
+        current_pos = peek_pos;
+
+        if (is_type) {
+          auto type = parse_type();
+          if (!type)
+            return nullopt;
+          bc.type_args.push_back(
+              make_unique<ast::TypeAnnot>(std::move(type->value)));
+        } else {
+          auto arg = parse_expression();
+          if (!arg)
+            return nullopt;
+          bc.args.push_back(make_unique<ast::Expr>(std::move(arg->value)));
+        }
       } else {
         auto arg = parse_expression();
         if (!arg)

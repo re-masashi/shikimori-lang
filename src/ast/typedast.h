@@ -61,6 +61,13 @@ struct ScopeAccess {
   vector<unique_ptr<TypedExpr>> payload;
 };
 
+struct UnionVariantInit {
+  Span span;
+  Identifier union_name;
+  Identifier variant;
+  vector<unique_ptr<TypedExpr>> payload;
+};
+
 struct FieldAccess {
   Span span;
   unique_ptr<TypedExpr> object;
@@ -119,6 +126,7 @@ struct Continue {
 struct BuiltinCall {
   Span span;
   Identifier name;
+  vector<TypeRef> type_args;
   vector<unique_ptr<TypedExpr>> args;
 };
 
@@ -181,9 +189,10 @@ struct TypedExpr {
   Span span;
   TypeRef ty;
   variant<IntLiteral, FloatLiteral, BoolLiteral, StringLiteral, NullLiteral,
-          IdentifierExpr, StructInit, ScopeAccess, FieldAccess, MethodCall,
-          IndexAccess, Call, UnaryExpr, BinaryExpr, Assignment, IfExpr,
-          MatchExpr, Break, Continue, BuiltinCall, RangeExpr, TypeInit>
+          IdentifierExpr, StructInit, UnionVariantInit, ScopeAccess,
+          FieldAccess, MethodCall, IndexAccess, Call, UnaryExpr, BinaryExpr,
+          Assignment, IfExpr, MatchExpr, Break, Continue, BuiltinCall,
+          RangeExpr, TypeInit>
       value;
 };
 

@@ -243,6 +243,7 @@ struct ComptimeExpr {
 struct BuiltinCall {
   Span span;
   Identifier name;
+  vector<unique_ptr<TypeAnnot>> type_args;
   vector<unique_ptr<Expr>> args;
 };
 

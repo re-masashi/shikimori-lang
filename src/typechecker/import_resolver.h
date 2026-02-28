@@ -28,6 +28,7 @@ public:
 
 private:
   set<string> visited_paths;
+  vector<string> import_stack; // Track current import chain for cycle detection
   void collect_recursive(const ast::Program &program);
   void collect_from_file(const string &path);
 };

@@ -23,6 +23,17 @@ struct UnionDef {
   optional<ForAll> scheme;
 };
 
+struct FnConstraint {
+  string type_param;         // "T" in where T: interface X
+  vector<string> interfaces; // where T: interface A + B
+};
+
+struct FnDef {
+  TypeRef ty;                        // ForAll or FnTy
+  vector<FnConstraint> where_clause; // constraints on type params
+  bool is_static;                    // true if no self parameter
+};
+
 namespace shikimori {
 
 struct TypeError : runtime_error {
@@ -33,7 +44,7 @@ struct TypeError : runtime_error {
 struct Typechecker {
 public:
   ImportResolver import_resolver;
-  map<string, TypeRef> functions; // name -> ForAll or FnTy
+  map<string, FnDef> functions; // name -> FnDef with type and constraints
   map<string, StructDef> structs;
   map<string, UnionDef> unions;
   map<string, TyInterface> interfaces;
@@ -53,7 +64,7 @@ public:
   void collect_from_program_filtered(const ast::Program &program,
                                      const vector<ast::ImportItem> &items);
 
-  void collect_fn(const ast::FnDecl &decl);
+  void collect_fn(const ast::FnDecl &decl, const string &name_prefix = "");
   void collect_struct(const ast::StructDecl &decl);
   void collect_union(const ast::UnionDecl &decl);
   void collect_interface(const ast::InterfaceDecl &decl);

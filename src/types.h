@@ -29,6 +29,7 @@ enum NamedTyKind {
   Primitive,
   Pointer,
   Slice,
+  Interface, // fat pointer: { *data, *vtable }
 };
 
 struct TyNamed {
@@ -52,19 +53,20 @@ struct TyArray {
   uint64_t size;
 };
 
+// Interface trait object (fat pointer)
+struct TyInterfaceObj {
+  vector<string> interfaces; // interface A + B -> [A, B]
+  TypeRef data_ty;           // concrete type being wrapped
+};
+
 struct TyInterface {
   string name;
   map<string, TypeRef> methods; // TypeRef not fnty because functions can be
                                 // wrapped inside forall
 };
 
-struct InterfaceConstraint {
-  vector<string> interfaces;
-};
-
 struct Type {
-  variant<TyVar, ETVar, TyNamed, FnTy, ForAll, TyArray,
-          InterfaceConstraint>
+  variant<TyVar, ETVar, TyNamed, FnTy, ForAll, TyArray, TyInterfaceObj>
       ty;
   Span span;
 };
