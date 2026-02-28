@@ -734,6 +734,9 @@ TypeRef Typechecker::instantiate(const ForAll &scheme) {
   return do_subst(scheme.body);
 }
 
+// Forward declaration
+static bool is_integer_type(const TypeRef &ty);
+
 void Typechecker::unify(TypeRef a, TypeRef b, Span span) {
   a = apply_solutions(a);
   b = apply_solutions(b);
@@ -741,6 +744,7 @@ void Typechecker::unify(TypeRef a, TypeRef b, Span span) {
   if (a == b)
     return;
 
+  // Handle ETVar
   if (auto etvar = std::get_if<ETVar>(&a->ty)) {
     ty_solutions[etvar->id] = b;
     return;
@@ -754,6 +758,11 @@ void Typechecker::unify(TypeRef a, TypeRef b, Span span) {
   // Named types
   if (auto named_a = std::get_if<TyNamed>(&a->ty)) {
     if (auto named_b = std::get_if<TyNamed>(&b->ty)) {
+      // Integer types are compatible - allow implicit widening
+      if (is_integer_type(a) && is_integer_type(b)) {
+        return; // Success - integers can unify
+      }
+
       if (named_a->name != named_b->name || named_a->kind != named_b->kind) {
         throw TypeError("type mismatch: " + type_to_string(a) + " vs " +
                             type_to_string(b),
@@ -1023,6 +1032,24 @@ static bool is_float_type(const TypeRef &ty) {
   if (!name)
     return false;
   return *name == "f32" || *name == "f64";
+}
+
+// Get the bit width of an integer type (0 if not an integer type)
+static int get_integer_bit_width(const TypeRef &ty) {
+  auto name = get_primitive_name(ty);
+  if (!name)
+    return 0;
+  if (*name == "i8" || *name == "u8")
+    return 8;
+  if (*name == "i16" || *name == "u16")
+    return 16;
+  if (*name == "i32" || *name == "u32")
+    return 32;
+  if (*name == "i64" || *name == "u64")
+    return 64;
+  if (*name == "usize")
+    return 64;
+  return 0;
 }
 
 // Check if a cast from src_ty to dst_ty is allowed
@@ -1566,14 +1593,35 @@ typed::TypedExpr Typechecker::check_binary(const ast::BinaryExpr &bin,
 
   using ast::BinaryOp;
 
+  auto compute_integer_result_type = [&]() -> TypeRef {
+    auto left_solved = apply_solutions(left.ty);
+    auto right_solved = apply_solutions(right.ty);
+
+    if (is_integer_type(left_solved) && is_integer_type(right_solved)) {
+      int width_a = get_integer_bit_width(left_solved);
+      int width_b = get_integer_bit_width(right_solved);
+      if (width_b > width_a)
+        return right_solved;
+      if (width_a > width_b)
+        return left_solved;
+      auto name_a = get_primitive_name(left_solved);
+      auto name_b = get_primitive_name(right_solved);
+      if (name_b && name_b->starts_with("u"))
+        return right_solved;
+      return left_solved;
+    }
+    return left_solved;
+  };
+
   // Arithmetic operators
   if (bin.op == BinaryOp::Add || bin.op == BinaryOp::Sub ||
       bin.op == BinaryOp::Mul || bin.op == BinaryOp::Div ||
       bin.op == BinaryOp::Mod) {
     unify(left.ty, right.ty, span);
+    auto result_ty = compute_integer_result_type();
     auto result = make_shared<typed::TypedExpr>();
     result->span = span;
-    result->ty = apply_solutions(left.ty);
+    result->ty = result_ty;
     result->value = typed::BinaryExpr{
         span, bin.op, make_unique<typed::TypedExpr>(std::move(left)),
         make_unique<typed::TypedExpr>(std::move(right))};
@@ -1609,9 +1657,10 @@ typed::TypedExpr Typechecker::check_binary(const ast::BinaryExpr &bin,
   if (bin.op == BinaryOp::BitAnd || bin.op == BinaryOp::BitXor ||
       bin.op == BinaryOp::BitOr) {
     unify(left.ty, right.ty, span);
+    auto result_ty = compute_integer_result_type();
     auto result = make_shared<typed::TypedExpr>();
     result->span = span;
-    result->ty = apply_solutions(left.ty);
+    result->ty = result_ty;
     result->value = typed::BinaryExpr{
         span, bin.op, make_unique<typed::TypedExpr>(std::move(left)),
         make_unique<typed::TypedExpr>(std::move(right))};
@@ -2259,6 +2308,8 @@ typed::TypedExpr Typechecker::check_expr(const ast::Expr &expr) {
         if constexpr (std::is_same_v<T, ast::IntLiteral>) {
           auto result = make_shared<typed::TypedExpr>();
           result->span = e.span;
+          // Integer literals are i32 by default, but can be widened to larger
+          // types
           result->ty = make_primitive("i32", e.span);
           result->value = typed::IntLiteral{e.span, e.value};
           return std::move(*result);

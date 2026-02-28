@@ -1,0 +1,25 @@
+fn test_i8_param(x: i8) -> i8 {
+    return x + 1;
+}
+
+fn test_i64_param(x: i64) -> i64 {
+    return x + 100;
+}
+
+fn test_mixed() -> i64 {
+    let a: i8 = 10;
+    let b: i64 = 20;
+    return a + b;
+}
+
+fn test_unsigned() -> u32 {
+    let a: i32 = 10;
+    let b: u32 = 20;
+    return a + b;
+}
+
+fn main() {
+    let x = test_i8_param(5);
+    let y = test_i64_param(100);
+    let z = test_mixed();
+}

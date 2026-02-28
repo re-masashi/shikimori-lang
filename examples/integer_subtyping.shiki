@@ -1,0 +1,52 @@
+fn test_i8() -> i8 {
+    return 42;
+}
+
+fn test_i16() -> i16 {
+    return 100;
+}
+
+fn test_i32() -> i32 {
+    return 1000;
+}
+
+fn test_i64() -> i64 {
+    return 10000;
+}
+
+fn test_u8() -> u8 {
+    return 255;
+}
+
+fn test_u16() -> u16 {
+    return 65535;
+}
+
+fn test_u32() -> u32 {
+    return 100000;
+}
+
+fn test_u64() -> u64 {
+    return 1000000;
+}
+
+
+fn test_arithmetic() -> i32 {
+    let a: i8 = 10;
+    let b: i16 = 20;
+    return a + b;
+}
+
+fn test_mixed_signed_unsigned() -> u32 {
+    let a: i32 = 10;
+    let b: u32 = 20;
+    return a + b;
+}
+
+fn main() {
+    let x = test_i8();
+    let y = test_i16();
+    let z = test_i32();
+    
+    let bits = 0xFF & 0x0F;
+}
