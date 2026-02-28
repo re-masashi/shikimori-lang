@@ -63,7 +63,7 @@ fn main() {
     while !s.is_empty() {
         let val = s.pop();
         match val {
-            some(v) => { c_puts("popped"); },
+            some(v) => { c_puts("popped" as *u8); },
             none    => { },
         }
     }

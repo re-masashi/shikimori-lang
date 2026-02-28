@@ -102,9 +102,9 @@ fn main() {
         let tok = lex.next_token();
         match tok {
             eof         => { break; },
-            number(n)   => { c_puts("number"); },
-            ident(s)    => { c_puts("ident"); },
-            invalid(c)  => { c_puts("invalid"); break; },
+            number(n)   => { c_puts("number" as *u8); },
+            ident(s)    => { c_puts("ident" as *u8); },
+            invalid(c)  => { c_puts("invalid" as *u8); break; },
         }
     }
 }
