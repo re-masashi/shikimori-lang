@@ -92,8 +92,7 @@ void report_error(string_view source, const Span &span,
   }
 
   string_view error_line = get_line(source, line_num);
-  cerr << Color::GRAY << "  " << string(line_num_width, ' ') << " |\n"
-       << "  " << line_num << " | " << Color::RESET << error_line << "\n";
+  cerr << Color::GRAY << " " << string(line_num_width, ' ') << line_num << " | " << Color::RESET << error_line << "\n";
 
   cerr << Color::GRAY << "  " << string(line_num_width, ' ') << " | "
        << Color::RESET;
@@ -116,8 +115,7 @@ void report_error(string_view source, const Span &span,
   size_t total_lines = get_line_number(source, source.size());
   if (line_num < total_lines) {
     string_view next_line = get_line(source, line_num + 1);
-    cerr << Color::GRAY << "  " << string(line_num_width, ' ') << " |\n"
-         << "  " << (line_num + 1) << " | " << Color::RESET
+    cerr << Color::GRAY << " " << string(line_num_width, ' ') << (line_num + 1) << " | " << Color::RESET
          << next_line << "\n";
   }
 
