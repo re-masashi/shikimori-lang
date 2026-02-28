@@ -1,10 +1,7 @@
 #pragma once
 #include <cstdint>
-#include <format>
 #include <map>
-#include <memory>
 #include <optional>
-#include <ranges>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -46,13 +43,32 @@ using namespace std;
 using namespace shikimori;
 
 struct StructDef {
-  vector<pair<string, TypeRef>> fields;
+  vector<pair<string, TypeRef>>
+      fields; // resolved during collect for non generic, deferred for generic
   optional<ForAll> scheme;
+
+  // For deferred type resolution in check phase. Store raw pointers to avoid
+  // copying unique_ptr
+  struct FieldInfo {
+    string name;
+    const ast::TypeAnnot *type; // non-owning pointer
+  };
+  vector<FieldInfo> field_decls;
+  vector<string> generic_params; // to restore context when resolving
 };
 
 struct UnionDef {
-  vector<pair<string, vector<TypeRef>>> variants; // name -> payload
+  vector<pair<string, vector<TypeRef>>> variants; // name -> payload (resolved)
   optional<ForAll> scheme;
+
+  // For deferred type resolution in check phase. Store raw pointers to avoid
+  // copying unique_ptr
+  struct VariantInfo {
+    string name;
+    const ast::TypeAnnot *type; // non owning pointer, null if no payload
+  };
+  vector<VariantInfo> variant_decls;
+  vector<string> generic_params; // to restore context when resolving
 };
 
 struct FnConstraint {
@@ -92,6 +108,8 @@ public:
   TypeRef current_return_type = nullptr;
   string current_fn_name; // current function being checked (for where clauses)
 
+  bool resolved = false; // track if resolve() pass has been run
+
   void collect(const ast::Program &program);
   void collect_from_program(const ast::Program &program);
   void collect_from_program_filtered(const ast::Program &program,
@@ -104,6 +122,10 @@ public:
   void collect_extern(const ast::ExternDecl &decl);
 
   void resolve_use(const ast::UseDecl &use, string file_path);
+
+  void resolve();
+  void resolve_struct_fields(const string &struct_name);
+  void resolve_union_variants(const string &union_name);
 
   TypeRef resolve_type(const ast::TypeAnnot &annot);
 

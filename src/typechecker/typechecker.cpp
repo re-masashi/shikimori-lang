@@ -279,11 +279,20 @@ void Typechecker::collect_struct(const ast::StructDecl &decl) {
     for (size_t i = 0; i < decl.generic_params.size(); i++) {
       current_type_vars[decl.generic_params[i].name] = static_cast<uint32_t>(i);
       saved_vars[decl.generic_params[i].name] = static_cast<uint32_t>(i);
+      def.generic_params.push_back(decl.generic_params[i].name);
     }
   }
 
+  // Store field declarations for deferred resolution
   for (auto &field : decl.fields) {
-    def.fields.push_back({field.name, resolve_type(*field.type)});
+    def.field_decls.push_back({field.name, field.type.get()});
+  }
+
+  // For non-generic structs, resolve fields immediately
+  if (decl.generic_params.empty()) {
+    for (auto &field : decl.fields) {
+      def.fields.push_back({field.name, resolve_type(*field.type)});
+    }
   }
 
   if (!decl.generic_params.empty()) {
@@ -323,15 +332,28 @@ void Typechecker::collect_union(const ast::UnionDecl &decl) {
     for (size_t i = 0; i < decl.generic_params.size(); i++) {
       current_type_vars[decl.generic_params[i].name] = static_cast<uint32_t>(i);
       saved_vars[decl.generic_params[i].name] = static_cast<uint32_t>(i);
+      def.generic_params.push_back(decl.generic_params[i].name);
     }
   }
 
+  // Store variant declarations for deferred resolution
   for (auto &variant : decl.variants) {
-    vector<TypeRef> payload;
+    const ast::TypeAnnot *type_ptr = nullptr;
     if (variant.type && *variant.type) {
-      payload.push_back(resolve_type(**variant.type));
+      type_ptr = (*variant.type).get();
     }
-    def.variants.push_back({variant.name, payload});
+    def.variant_decls.push_back({variant.name, type_ptr});
+  }
+
+  // For non-generic unions, resolve variants immediately
+  if (decl.generic_params.empty()) {
+    for (auto &variant : decl.variants) {
+      vector<TypeRef> payload;
+      if (variant.type && *variant.type) {
+        payload.push_back(resolve_type(**variant.type));
+      }
+      def.variants.push_back({variant.name, payload});
+    }
   }
 
   if (!decl.generic_params.empty()) {
@@ -423,6 +445,84 @@ void Typechecker::collect_extern(const ast::ExternDecl &decl) {
   FnDef fn_def;
   fn_def.ty = fn_ty;
   functions[decl.name] = std::move(fn_def);
+}
+
+void Typechecker::resolve() {
+  if (resolved)
+    return; // Already resolved
+
+  // Resolve all deferred struct fields and union variants
+  // At this point, all names have been collected, so forward references work
+  for (auto &[name, def] : structs) {
+    if (!def.generic_params.empty() && def.fields.empty()) {
+      resolve_struct_fields(name);
+    }
+  }
+  for (auto &[name, def] : unions) {
+    if (!def.generic_params.empty() && def.variants.empty()) {
+      resolve_union_variants(name);
+    }
+  }
+
+  resolved = true;
+}
+
+void Typechecker::resolve_struct_fields(const string &struct_name) {
+  if (!structs.contains(struct_name))
+    return;
+
+  StructDef &def = structs[struct_name];
+  if (def.field_decls.empty())
+    return;
+
+  // Restore type vars context
+  map<string, uint32_t> saved_vars;
+  for (size_t i = 0; i < def.generic_params.size(); i++) {
+    current_type_vars[def.generic_params[i]] = static_cast<uint32_t>(i);
+    saved_vars[def.generic_params[i]] = static_cast<uint32_t>(i);
+  }
+
+  // Now resolve field types with all names available
+  for (auto &field : def.field_decls) {
+    if (field.type) {
+      def.fields.push_back({field.name, resolve_type(*field.type)});
+    }
+  }
+
+  // Clean up
+  for (auto &kv : saved_vars) {
+    current_type_vars.erase(kv.first);
+  }
+}
+
+void Typechecker::resolve_union_variants(const string &union_name) {
+  if (!unions.contains(union_name))
+    return;
+
+  UnionDef &def = unions[union_name];
+  if (def.variant_decls.empty())
+    return;
+
+  // Restore type vars context
+  map<string, uint32_t> saved_vars;
+  for (size_t i = 0; i < def.generic_params.size(); i++) {
+    current_type_vars[def.generic_params[i]] = static_cast<uint32_t>(i);
+    saved_vars[def.generic_params[i]] = static_cast<uint32_t>(i);
+  }
+
+  // Now resolve variant types with all names available
+  for (auto &variant : def.variant_decls) {
+    vector<TypeRef> payload;
+    if (variant.type) {
+      payload.push_back(resolve_type(*variant.type));
+    }
+    def.variants.push_back({variant.name, payload});
+  }
+
+  // Clean up
+  for (auto &kv : saved_vars) {
+    current_type_vars.erase(kv.first);
+  }
 }
 
 TypeRef Typechecker::resolve_type(const ast::TypeAnnot &annot) {
@@ -550,6 +650,7 @@ void Typechecker::resolve_use(const ast::UseDecl &use, string file_path) {
 
 typed::TypedProgram Typechecker::run(const ast::Program &program) {
   collect(program);
+  resolve();
   return check(program);
 }
 
@@ -1477,14 +1578,14 @@ typed::TypedExpr Typechecker::check_method_call(const ast::MethodCall &call,
   bool found_method = false;
   if (!functions.contains(method_name)) {
     if (!functions.contains(call.method)) {
-      // Method not found on this type - try auto-deref if we have a pointer
+      // Method not found on this type; try auto-deref if we have a pointer
       if (is_pointer) {
         // Get the inner type name
         if (auto inner_named = std::get_if<TyNamed>(&inner_ty->ty)) {
           string inner_type_name = inner_named->name;
           string inner_method_name = inner_type_name + "." + call.method;
           if (functions.contains(inner_method_name)) {
-            // Found method on inner type - auto-deref
+            // Found method on inner type, auto-deref
             // Create dereference expression: *obj
             auto deref_obj = make_shared<typed::TypedExpr>();
             deref_obj->span = span;
@@ -2616,6 +2717,9 @@ typed::TypedStmt Typechecker::check_stmt(const ast::Stmt &stmt) {
 }
 
 typed::TypedFnDecl Typechecker::check_fn(const ast::FnDecl &decl) {
+  if (!resolved)
+    resolve();
+
   push_scope();
 
   // Set current function name for where clause lookups
@@ -2989,7 +3093,7 @@ typed::TypedExpr Typechecker::check_expr(const ast::Expr &expr) {
 typed::TypedProgram Typechecker::check(const ast::Program &program) {
   typed::TypedProgram result;
 
-  // Check all declarations (collect already ran in run())
+  // Check all declarations (collect and resolve already ran in run())
   for (auto &declaration : program.declarations) {
     std::visit(overload{
                    [&](const ast::FnDecl &fn) {
