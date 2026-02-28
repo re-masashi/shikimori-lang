@@ -340,7 +340,13 @@ void Typechecker::collect_union(const ast::UnionDecl &decl) {
       vars.push_back({decl.generic_params[i].name, static_cast<uint32_t>(i)});
     }
     auto body = make_shared<Type>();
-    body->ty = TyNamed{decl.name, Union, {}};
+    vector<TypeRef> tyvars;
+    for (size_t i = 0; i < decl.generic_params.size(); i++) {
+      auto tyvar = make_shared<Type>();
+      tyvar->ty = TyVar{static_cast<uint32_t>(i), decl.generic_params[i].name};
+      tyvars.push_back(tyvar);
+    }
+    body->ty = TyNamed{decl.name, Union, tyvars};
     def.scheme = ForAll{vars, body};
   }
 
@@ -734,6 +740,66 @@ TypeRef Typechecker::instantiate(const ForAll &scheme) {
   return do_subst(scheme.body);
 }
 
+TypeRef Typechecker::apply_substitution(TypeRef ty,
+                                        const map<uint32_t, TypeRef> &subst) {
+  function<TypeRef(TypeRef)> do_subst = [&](TypeRef ty) -> TypeRef {
+    return std::visit(
+        [&](auto &&t) -> TypeRef {
+          using T = std::decay_t<decltype(t)>;
+
+          if constexpr (std::is_same_v<T, TyVar>) {
+            if (subst.contains(t.id)) {
+              return subst.at(t.id);
+            }
+            return ty;
+
+          } else if constexpr (std::is_same_v<T, TyNamed>) {
+            vector<TypeRef> new_args;
+            for (auto &arg : t.args) {
+              new_args.push_back(do_subst(arg));
+            }
+            auto result = make_shared<Type>();
+            result->ty = TyNamed{t.name, t.kind, new_args};
+            result->span = ty->span;
+            return result;
+
+          } else if constexpr (std::is_same_v<T, FnTy>) {
+            vector<TypeRef> new_args;
+            for (auto &arg : t.args) {
+              new_args.push_back(do_subst(arg));
+            }
+            auto result = make_shared<Type>();
+            result->ty = FnTy{new_args, do_subst(t.return_type)};
+            result->span = ty->span;
+            return result;
+
+          } else if constexpr (std::is_same_v<T, TyArray>) {
+            auto result = make_shared<Type>();
+            result->ty = TyArray{do_subst(t.inner), t.size};
+            result->span = ty->span;
+            return result;
+
+          } else if constexpr (std::is_same_v<T, TyInterfaceObj>) {
+            auto result = make_shared<Type>();
+            result->ty = TyInterfaceObj{
+                t.interfaces, t.data_ty ? do_subst(t.data_ty) : nullptr};
+            result->span = ty->span;
+            return result;
+
+          } else if constexpr (std::is_same_v<T, ForAll>) {
+            // Don't substitute under forall
+            return ty;
+
+          } else {
+            return ty;
+          }
+        },
+        ty->ty);
+  };
+
+  return do_subst(ty);
+}
+
 // Forward declaration
 static bool is_integer_type(const TypeRef &ty);
 
@@ -758,9 +824,13 @@ void Typechecker::unify(TypeRef a, TypeRef b, Span span) {
   // Named types
   if (auto named_a = std::get_if<TyNamed>(&a->ty)) {
     if (auto named_b = std::get_if<TyNamed>(&b->ty)) {
-      // Integer types are compatible - allow implicit widening
+      // Pointer to pointer casts are always allowed (unsafe, but intentional)
+      if (named_a->kind == Pointer && named_b->kind == Pointer) {
+        return;
+      }
+
       if (is_integer_type(a) && is_integer_type(b)) {
-        return; // Success - integers can unify
+        return;
       }
 
       if (named_a->name != named_b->name || named_a->kind != named_b->kind) {
@@ -855,7 +925,9 @@ void Typechecker::unify(TypeRef a, TypeRef b, Span span) {
     return;
   }
 
-  throw TypeError("cannot unify types", span);
+  throw TypeError("cannot unify types: " + type_to_string(a) + " vs " +
+                      type_to_string(b),
+                  span);
 }
 
 // Interface satisfaction check
@@ -1052,46 +1124,35 @@ static int get_integer_bit_width(const TypeRef &ty) {
   return 0;
 }
 
-// Check if a cast from src_ty to dst_ty is allowed
-// Returns true if the cast is permitted, false otherwise
 static bool is_cast_allowed(const TypeRef &src_ty, const TypeRef &dst_ty,
                             Span /*span*/) {
-  // Same type - always allowed
-  // For simplicity, we compare primitive names
   auto src_name = get_primitive_name(src_ty);
   auto dst_name = get_primitive_name(dst_ty);
 
-  // Numeric to numeric casts are allowed
   if (is_numeric_type(src_ty) && is_numeric_type(dst_ty)) {
     return true;
   }
 
-  // Integer to float casts are allowed
   if (is_integer_type(src_ty) && is_float_type(dst_ty)) {
     return true;
   }
 
-  // Float to integer casts are allowed (with potential precision loss)
   if (is_float_type(src_ty) && is_integer_type(dst_ty)) {
     return true;
   }
 
-  // Bool to integer casts are allowed
   if (src_name == "bool" && is_integer_type(dst_ty)) {
     return true;
   }
 
-  // Integer to bool casts are allowed
   if (is_integer_type(src_ty) && dst_name == "bool") {
     return true;
   }
 
-  // String to string (identity)
   if (src_name == "string" && dst_name == "string") {
     return true;
   }
 
-  // String to *u8 (string to pointer)
   // This is safe
   if (src_name == "string") {
     if (auto *dst_named = std::get_if<TyNamed>(&dst_ty->ty)) {
@@ -1123,7 +1184,6 @@ static bool is_cast_allowed(const TypeRef &src_ty, const TypeRef &dst_ty,
     }
   }
 
-  // usize to pointer casts
   if (src_name == "usize") {
     if (auto *dst_named = std::get_if<TyNamed>(&dst_ty->ty)) {
       if (dst_named->kind == Pointer) {
@@ -1139,19 +1199,16 @@ typed::TypedExpr Typechecker::check_call(const ast::Call &call, Span span) {
   auto callee = check_expr(*call.callee);
   auto callee_ty = apply_solutions(callee.ty);
 
-  // Get the function name for where clause lookup
   string fn_name;
   if (auto *ident = std::get_if<typed::IdentifierExpr>(&callee.value)) {
     fn_name = ident->name;
   }
 
-  // Look up function definition for where clause constraints
   const FnDef *fn_def = nullptr;
   if (!fn_name.empty() && functions.contains(fn_name)) {
     fn_def = &functions.at(fn_name);
   }
 
-  // Unwrap ForAll if present
   TypeRef fn_ty_ref = callee_ty;
   if (auto forall = std::get_if<ForAll>(&callee_ty->ty)) {
     fn_ty_ref = instantiate(*forall);
@@ -1179,21 +1236,17 @@ typed::TypedExpr Typechecker::check_call(const ast::Call &call, Span span) {
     typed_args.push_back(make_unique<typed::TypedExpr>(std::move(arg)));
   }
 
-  // Apply solutions to get inferred types
   for (size_t i = 0; i < fn_ty->args.size(); i++) {
     auto param_ty = apply_solutions(fn_ty->args[i]);
     auto arg_ty = apply_solutions(typed_args[i]->ty);
 
-    // If param was a type variable, record the binding
     if (auto tvar = std::get_if<TyVar>(&fn_ty->args[i]->ty)) {
       type_bindings[tvar->id] = arg_ty;
     }
   }
 
-  // Check where clause constraints
   if (fn_def && !fn_def->where_clause.empty()) {
     for (auto &constraint : fn_def->where_clause) {
-      // Find the type variable id for this constraint
       uint32_t tvar_id = 0;
       bool found = false;
       if (auto forall = std::get_if<ForAll>(&callee_ty->ty)) {
@@ -1210,7 +1263,6 @@ typed::TypedExpr Typechecker::check_call(const ast::Call &call, Span span) {
         continue;
       }
 
-      // Get the inferred type for this type variable
       TypeRef inferred_ty = nullptr;
       if (type_bindings.contains(tvar_id)) {
         inferred_ty = type_bindings.at(tvar_id);
@@ -1221,7 +1273,6 @@ typed::TypedExpr Typechecker::check_call(const ast::Call &call, Span span) {
             "could not infer type for '" + constraint.type_param + "'", span);
       }
 
-      // Get the concrete type name
       string type_name;
       if (auto named = std::get_if<TyNamed>(&inferred_ty->ty)) {
         type_name = named->name;
@@ -1231,7 +1282,6 @@ typed::TypedExpr Typechecker::check_call(const ast::Call &call, Span span) {
                         span);
       }
 
-      // Check that the type satisfies all required interfaces
       for (auto &iface_name : constraint.interfaces) {
         check_satisfies(type_name, iface_name, span);
       }
@@ -1252,10 +1302,16 @@ typed::TypedExpr Typechecker::check_method_call(const ast::MethodCall &call,
   auto obj = check_expr(*call.object);
   auto obj_ty = apply_solutions(obj.ty);
 
-  if (auto iface_obj = std::get_if<TyInterfaceObj>(&obj_ty->ty)) {
+  bool is_pointer = false;
+  TypeRef inner_ty;
+  if (auto named = std::get_if<TyNamed>(&obj_ty->ty)) {
+    if (named->kind == Pointer && !named->args.empty()) {
+      is_pointer = true;
+      inner_ty = named->args[0];
+    }
+  }
 
-    // Note: data_ty may be nullptr at this point if this is a function
-    // parameter
+  if (auto iface_obj = std::get_if<TyInterfaceObj>(&obj_ty->ty)) {
 
     // Find which interface defines this method
     string interface_name;
@@ -1418,12 +1474,44 @@ typed::TypedExpr Typechecker::check_method_call(const ast::MethodCall &call,
 
   // Find the method
   string method_name = type_name + "." + call.method;
+  bool found_method = false;
   if (!functions.contains(method_name)) {
     if (!functions.contains(call.method)) {
-      throw TypeError("method not found: " + call.method + " on " + type_name,
-                      span);
+      // Method not found on this type - try auto-deref if we have a pointer
+      if (is_pointer) {
+        // Get the inner type name
+        if (auto inner_named = std::get_if<TyNamed>(&inner_ty->ty)) {
+          string inner_type_name = inner_named->name;
+          string inner_method_name = inner_type_name + "." + call.method;
+          if (functions.contains(inner_method_name)) {
+            // Found method on inner type - auto-deref
+            // Create dereference expression: *obj
+            auto deref_obj = make_shared<typed::TypedExpr>();
+            deref_obj->span = span;
+            deref_obj->ty = inner_ty;
+            deref_obj->value =
+                typed::UnaryExpr{span, ast::UnaryOp::Deref,
+                                 make_unique<typed::TypedExpr>(std::move(obj))};
+
+            // Now call the method on the dereferenced object
+            obj = std::move(*deref_obj);
+            obj_ty = inner_ty;
+            type_name = inner_type_name;
+            method_name = inner_method_name;
+            found_method = true;
+          }
+        }
+      }
+      if (!found_method) {
+        throw TypeError("method not found: " + call.method + " on " + type_name,
+                        span);
+      }
+    } else {
+      method_name = call.method;
+      found_method = true;
     }
-    method_name = call.method;
+  } else {
+    found_method = true;
   }
 
   auto fn_def = functions.at(method_name);
@@ -1548,6 +1636,93 @@ typed::TypedExpr Typechecker::check_field_access(const ast::FieldAccess &fa,
   auto obj = check_expr(*fa.object);
   auto obj_ty = apply_solutions(obj.ty);
 
+  // Check if we're accessing a field on a pointer type
+  // If the field is not found on the pointer, try the inner type with
+  // auto-deref
+  bool is_pointer = false;
+  TypeRef inner_ty;
+  if (auto named = std::get_if<TyNamed>(&obj_ty->ty)) {
+    if (named->kind == Pointer && !named->args.empty()) {
+      is_pointer = true;
+      inner_ty = named->args[0];
+    }
+  }
+
+  // Special case: .len field for string, slices, and arrays
+  if (fa.field == "len") {
+    // Check for string
+    if (auto named = std::get_if<TyNamed>(&obj_ty->ty)) {
+      if (named->kind == Primitive && named->name == "string") {
+        auto result = make_shared<typed::TypedExpr>();
+        result->span = span;
+        result->ty = make_primitive("usize", span);
+        result->value = typed::FieldAccess{
+            span, make_unique<typed::TypedExpr>(std::move(obj)), fa.field};
+        return std::move(*result);
+      }
+      // Check for slice: []T
+      if (named->kind == Slice) {
+        auto result = make_shared<typed::TypedExpr>();
+        result->span = span;
+        result->ty = make_primitive("usize", span);
+        result->value = typed::FieldAccess{
+            span, make_unique<typed::TypedExpr>(std::move(obj)), fa.field};
+        return std::move(*result);
+      }
+    }
+    // Check for array: [N]T
+    if (std::get_if<TyArray>(&obj_ty->ty)) {
+      auto result = make_shared<typed::TypedExpr>();
+      result->span = span;
+      result->ty = make_primitive("usize", span);
+      result->value = typed::FieldAccess{
+          span, make_unique<typed::TypedExpr>(std::move(obj)), fa.field};
+      return std::move(*result);
+    }
+  }
+
+  // Special case: .ptr field for string and slices (returns the data pointer)
+  if (fa.field == "ptr") {
+    // Check for string -> *u8
+    if (auto named = std::get_if<TyNamed>(&obj_ty->ty)) {
+      if (named->kind == Primitive && named->name == "string") {
+        auto result = make_shared<typed::TypedExpr>();
+        result->span = span;
+        auto u8_ty = make_primitive("u8", span);
+        result->ty = make_shared<Type>();
+        result->ty->ty = TyNamed{"ptr", Pointer, {u8_ty}};
+        result->ty->span = span;
+        result->value = typed::FieldAccess{
+            span, make_unique<typed::TypedExpr>(std::move(obj)), fa.field};
+        return std::move(*result);
+      }
+      // Check for slice: []T -> *T
+      if (named->kind == Slice && !named->args.empty()) {
+        auto result = make_shared<typed::TypedExpr>();
+        result->span = span;
+        auto inner_ty = named->args[0];
+        result->ty = make_shared<Type>();
+        result->ty->ty = TyNamed{"ptr", Pointer, {inner_ty}};
+        result->ty->span = span;
+        result->value = typed::FieldAccess{
+            span, make_unique<typed::TypedExpr>(std::move(obj)), fa.field};
+        return std::move(*result);
+      }
+    }
+    // Check for array: [N]T -> *T
+    if (auto arr = std::get_if<TyArray>(&obj_ty->ty)) {
+      auto result = make_shared<typed::TypedExpr>();
+      result->span = span;
+      auto inner_ty = arr->inner;
+      result->ty = make_shared<Type>();
+      result->ty->ty = TyNamed{"ptr", Pointer, {inner_ty}};
+      result->ty->span = span;
+      result->value = typed::FieldAccess{
+          span, make_unique<typed::TypedExpr>(std::move(obj)), fa.field};
+      return std::move(*result);
+    }
+  }
+
   string type_name;
   if (auto named = std::get_if<TyNamed>(&obj_ty->ty)) {
     type_name = named->name;
@@ -1555,8 +1730,37 @@ typed::TypedExpr Typechecker::check_field_access(const ast::FieldAccess &fa,
     throw TypeError("field access on non-named type", span);
   }
 
+  // Try to find the field, with auto-deref for pointers
+  bool found_field = false;
   if (!structs.contains(type_name)) {
-    throw TypeError("type has no fields: " + type_name, span);
+    // Field not found on this type - try auto-deref if we have a pointer
+    if (is_pointer) {
+      // Get the inner type name
+      if (auto inner_named = std::get_if<TyNamed>(&inner_ty->ty)) {
+        string inner_type_name = inner_named->name;
+        if (structs.contains(inner_type_name)) {
+          // Found struct on inner type - auto-deref
+          // Create dereference expression: *obj
+          auto deref_obj = make_shared<typed::TypedExpr>();
+          deref_obj->span = span;
+          deref_obj->ty = inner_ty;
+          deref_obj->value =
+              typed::UnaryExpr{span, ast::UnaryOp::Deref,
+                               make_unique<typed::TypedExpr>(std::move(obj))};
+
+          // Now access the field on the dereferenced object
+          obj = std::move(*deref_obj);
+          obj_ty = inner_ty;
+          type_name = inner_type_name;
+          found_field = true;
+        }
+      }
+    }
+    if (!found_field) {
+      throw TypeError("type has no fields: " + type_name, span);
+    }
+  } else {
+    found_field = true;
   }
 
   auto &s = structs.at(type_name);
@@ -1623,29 +1827,44 @@ typed::TypedExpr Typechecker::check_scope_access(const ast::ScopeAccess &sa,
     if (found_variant) {
       auto &[var_name, var_payload] = u.variants[variant_idx];
 
-      if (var_payload.empty()) {
-        if (!sa.payload.empty()) {
-          throw TypeError("variant '" + sa.member + "' has no payload", span);
-        }
-      } else {
-        if (sa.payload.size() != var_payload.size()) {
-          throw TypeError("variant '" + sa.member + "' expects " +
-                              to_string(var_payload.size()) + " argument(s)",
-                          span);
-        }
-        for (size_t i = 0; i < sa.payload.size(); i++) {
-          auto arg = check_expr(*sa.payload[i]);
-          unify(arg.ty, var_payload[i], sa.payload[i]->span);
-        }
-      }
-
+      // Instantiate the union type first to get fresh type variables
       TypeRef union_ty;
+      map<uint32_t, TypeRef> subst;
       if (u.scheme) {
+        // Create substitution map from TyVar IDs to fresh ETVars
+        for (auto &[name, id] : u.scheme->vars) {
+          auto etvar = fresh_etvar(name);
+          subst[id] = etvar;
+        }
+        // Apply substitution to get the union type
         union_ty = instantiate(*u.scheme);
       } else {
         union_ty = make_shared<Type>();
         union_ty->ty = TyNamed{sa.scope, Union, {}};
         union_ty->span = span;
+      }
+
+      // Apply substitution to variant payload types
+      vector<TypeRef> instantiated_payload;
+      for (auto &pty : var_payload) {
+        instantiated_payload.push_back(apply_substitution(pty, subst));
+      }
+
+      if (instantiated_payload.empty()) {
+        if (!sa.payload.empty()) {
+          throw TypeError("variant '" + sa.member + "' has no payload", span);
+        }
+      } else {
+        if (sa.payload.size() != instantiated_payload.size()) {
+          throw TypeError("variant '" + sa.member + "' expects " +
+                              to_string(instantiated_payload.size()) +
+                              " argument(s)",
+                          span);
+        }
+        for (size_t i = 0; i < sa.payload.size(); i++) {
+          auto arg = check_expr(*sa.payload[i]);
+          unify(arg.ty, instantiated_payload[i], sa.payload[i]->span);
+        }
       }
 
       vector<unique_ptr<typed::TypedExpr>> typed_payload;
@@ -2119,18 +2338,15 @@ typed::TypedExpr Typechecker::check_struct_init(const ast::StructInit &init,
     struct_ty->span = span;
   }
 
-  // Check fields
   vector<pair<Identifier, unique_ptr<typed::TypedExpr>>> typed_fields;
 
   for (size_t i = 0; i < init.fields.size(); i++) {
     auto &[fname, fexpr] = init.fields[i];
     TypeRef expected_ty = nullptr;
 
-    // Find the field in the definition and apply substitution
     for (size_t j = 0; j < s.fields.size(); j++) {
       if (s.fields[j].first == fname) {
         auto field_ty = s.fields[j].second;
-        // Apply substitution to field type
         if (auto tvar = std::get_if<TyVar>(&field_ty->ty)) {
           if (subst.contains(tvar->id)) {
             expected_ty = subst.at(tvar->id);
@@ -2604,11 +2820,27 @@ typed::TypedExpr Typechecker::check_expr(const ast::Expr &expr) {
           auto idx = check_expr(*e.index);
           unify(idx.ty, make_primitive("usize", e.span), e.span);
 
-          auto elem_ty = fresh_etvar("elem");
-          auto arr_ty = make_shared<Type>();
-          arr_ty->ty = TyArray{elem_ty, 0};
-          arr_ty->span = e.span;
-          unify(obj.ty, arr_ty, e.span);
+          auto obj_ty = apply_solutions(obj.ty);
+          TypeRef elem_ty;
+
+          // Check what kind of type we're indexing
+          if (auto arr = std::get_if<TyArray>(&obj_ty->ty)) {
+            // Array: [N]T -> T
+            elem_ty = arr->inner;
+          } else if (auto named = std::get_if<TyNamed>(&obj_ty->ty)) {
+            if (named->kind == Slice && !named->args.empty()) {
+              // Slice: []T -> T
+              elem_ty = named->args[0];
+            } else if (named->kind == Primitive && named->name == "string") {
+              // string -> u8
+              elem_ty = make_primitive("u8", e.span);
+            } else {
+              throw TypeError("cannot index type: " + type_to_string(obj_ty),
+                              e.span);
+            }
+          } else {
+            throw TypeError("cannot index non-array/slice/string type", e.span);
+          }
 
           auto result = make_shared<typed::TypedExpr>();
           result->span = e.span;

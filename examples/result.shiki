@@ -29,10 +29,10 @@ fn parse_u64(s: string) -> Result[u64, ParseError] {
     let i = 0;
 
     while i < s.len {
-        let ch = s.ptr#[i];
+        let ch = s#[i];
 
         if ch < 48 || ch > 57 {   // '0' = 48, '9' = 57
-            return Result::err(Result::invalid_char(ch));
+            return Result::err(ParseError::invalid_char(ch));
         }
 
         let digit: u64 = ch - 48;
@@ -53,12 +53,12 @@ fn main() {
     let r = parse_u64("12345");
 
     match r {
-        ok(n)  => { c_puts("parsed ok"); },
+        ok(n)  => { c_puts("parsed ok" as *u8); },
         err(e) => {
             match e {
-                empty_input    => { c_puts("empty input"); },
-                invalid_char(c) => { c_puts("bad char"); },
-                overflow       => { c_puts("overflow"); },
+                empty_input    => { c_puts("empty input" as *u8); },
+                invalid_char(c) => { c_puts("bad char" as *u8); },
+                overflow       => { c_puts("overflow" as *u8); },
             }
         },
     }

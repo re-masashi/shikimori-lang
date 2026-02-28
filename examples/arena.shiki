@@ -50,7 +50,7 @@ fn spawn_player(arena: *Arena, health: i32) -> *Player {
     let ptr = arena.alloc(@sizeof(Player));
     if ptr == null { return null; }
 
-    let p: *Player = ptr;
+    let p: *Player = ptr as *Player;
     p.health = health;
     p.score  = 0;
     p.level  = 1;
@@ -65,14 +65,14 @@ fn main() {
     let p2 = spawn_player(&arena, 80);
 
     if p1 == null || p2 == null {
-        c_puts("OOM");
+        c_puts("OOM" as *u8);
         return;
     }
 
     p1.score = p1.score + 500;
     p2.health = p2.health - 20;
 
-    c_puts("done");
+    c_puts("done" as *u8);
 
     // All memory freed at once via defer arena.free()
     // No per-object free needed

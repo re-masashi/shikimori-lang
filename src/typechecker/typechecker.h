@@ -128,6 +128,7 @@ public:
   void unify(TypeRef a, TypeRef b, Span span);
 
   TypeRef instantiate(const ForAll &scheme);
+  TypeRef apply_substitution(TypeRef ty, const map<uint32_t, TypeRef> &subst);
 
   TypeRef apply_solutions(TypeRef ty);
 
