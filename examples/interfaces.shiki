@@ -44,7 +44,7 @@ struct Rect {
 
 // Takes any Shape via fat pointer. Dynamic dispatch
 fn print_shape(s: interface Shape) {
-    c_puts(s.name());
+    c_puts(s.name() as *u8);
     // area would be used in real output
     let a = s.area();
 }
@@ -64,5 +64,5 @@ fn main() {
     print_shape(r);
 
     let big = largest[Circle](c, Circle::new(2.0));
-    c_puts("done");
+    c_puts("done" as *u8);
 }

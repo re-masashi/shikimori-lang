@@ -90,6 +90,7 @@ public:
   vector<map<string, TypeRef>> scopes;
 
   TypeRef current_return_type = nullptr;
+  string current_fn_name; // current function being checked (for where clauses)
 
   void collect(const ast::Program &program);
   void collect_from_program(const ast::Program &program);

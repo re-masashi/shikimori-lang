@@ -1252,7 +1252,163 @@ typed::TypedExpr Typechecker::check_method_call(const ast::MethodCall &call,
   auto obj = check_expr(*call.object);
   auto obj_ty = apply_solutions(obj.ty);
 
-  // Look up method on the object's type
+  if (auto iface_obj = std::get_if<TyInterfaceObj>(&obj_ty->ty)) {
+
+    // Note: data_ty may be nullptr at this point if this is a function
+    // parameter
+
+    // Find which interface defines this method
+    string interface_name;
+    TypeRef interface_method_ty;
+    bool found = false;
+    for (auto &iface_name : iface_obj->interfaces) {
+      if (interfaces.contains(iface_name)) {
+        auto &iface = interfaces.at(iface_name);
+        if (iface.methods.contains(call.method)) {
+          interface_name = iface_name;
+          interface_method_ty = iface.methods.at(call.method);
+          found = true;
+          break;
+        }
+      }
+    }
+
+    if (!found) {
+      throw TypeError("method '" + call.method + "' not found in interface",
+                      span);
+    }
+
+    TypeRef fn_ty_ref = interface_method_ty;
+
+    if (auto forall = std::get_if<ForAll>(&interface_method_ty->ty)) {
+      fn_ty_ref = instantiate(*forall);
+    }
+
+    auto fn_ty = std::get_if<FnTy>(&fn_ty_ref->ty);
+    if (!fn_ty) {
+      throw TypeError("method is not a function", span);
+    }
+
+    if (fn_ty->args.empty()) {
+      throw TypeError("method has no self parameter", span);
+    }
+
+    auto self_param = fn_ty->args[0];
+    auto *self_ptr = std::get_if<TyNamed>(&self_param->ty);
+    if (!self_ptr || self_ptr->kind != Pointer) {
+      throw TypeError("method self parameter must be a reference (pointer)",
+                      span);
+    }
+
+    if (self_ptr->args.empty()) {
+      throw TypeError("method self pointer has no inner type", span);
+    }
+
+    if (call.args.size() != fn_ty->args.size() - 1) {
+      throw TypeError("argument count mismatch for method", span);
+    }
+
+    vector<unique_ptr<typed::TypedExpr>> typed_args;
+    for (size_t i = 0; i < call.args.size(); i++) {
+      auto arg = check_expr(*call.args[i]);
+      unify(arg.ty, fn_ty->args[i + 1], span);
+      typed_args.push_back(make_unique<typed::TypedExpr>(std::move(arg)));
+    }
+
+    auto result = make_shared<typed::TypedExpr>();
+    result->span = span;
+    result->ty = apply_solutions(fn_ty->return_type);
+    result->value =
+        typed::MethodCall{span, make_unique<typed::TypedExpr>(std::move(obj)),
+                          call.method, std::move(typed_args)};
+    return std::move(*result);
+  }
+
+  if (auto ty_var = std::get_if<TyVar>(&obj_ty->ty)) {
+    if (current_fn_name.empty() || !functions.contains(current_fn_name)) {
+      throw TypeError("method call on generic type parameter outside of "
+                      "function context",
+                      span);
+    }
+
+    auto &fn_def = functions.at(current_fn_name);
+    string type_param_name = ty_var->name;
+
+    string interface_name;
+    bool found_constraint = false;
+    for (auto &constraint : fn_def.where_clause) {
+      if (constraint.type_param == type_param_name) {
+        for (auto &iface_name : constraint.interfaces) {
+          if (interfaces.contains(iface_name)) {
+            auto &iface = interfaces.at(iface_name);
+            if (iface.methods.contains(call.method)) {
+              interface_name = iface_name;
+              found_constraint = true;
+              break;
+            }
+          }
+        }
+        if (found_constraint)
+          break;
+      }
+    }
+
+    if (!found_constraint) {
+      throw TypeError(
+          "method call on generic type parameter '" + type_param_name +
+              "' without interface constraint for method '" + call.method + "'",
+          span);
+    }
+
+    auto &iface = interfaces.at(interface_name);
+    TypeRef interface_method_ty = iface.methods.at(call.method);
+
+    TypeRef fn_ty_ref = interface_method_ty;
+    if (auto forall = std::get_if<ForAll>(&interface_method_ty->ty)) {
+      fn_ty_ref = instantiate(*forall);
+    }
+
+    auto fn_ty = std::get_if<FnTy>(&fn_ty_ref->ty);
+    if (!fn_ty) {
+      throw TypeError("method is not a function", span);
+    }
+
+    if (fn_ty->args.empty()) {
+      throw TypeError("method has no self parameter", span);
+    }
+
+    auto self_param = fn_ty->args[0];
+    auto *self_ptr = std::get_if<TyNamed>(&self_param->ty);
+    if (!self_ptr || self_ptr->kind != Pointer) {
+      throw TypeError("method self parameter must be a reference (pointer)",
+                      span);
+    }
+
+    if (self_ptr->args.empty()) {
+      throw TypeError("method self pointer has no inner type", span);
+    }
+
+    // Check remaining args
+    if (call.args.size() != fn_ty->args.size() - 1) {
+      throw TypeError("argument count mismatch for method", span);
+    }
+
+    vector<unique_ptr<typed::TypedExpr>> typed_args;
+    for (size_t i = 0; i < call.args.size(); i++) {
+      auto arg = check_expr(*call.args[i]);
+      unify(arg.ty, fn_ty->args[i + 1], span);
+      typed_args.push_back(make_unique<typed::TypedExpr>(std::move(arg)));
+    }
+
+    auto result = make_shared<typed::TypedExpr>();
+    result->span = span;
+    result->ty = apply_solutions(fn_ty->return_type);
+    result->value =
+        typed::MethodCall{span, make_unique<typed::TypedExpr>(std::move(obj)),
+                          call.method, std::move(typed_args)};
+    return std::move(*result);
+  }
+
   string type_name;
   if (auto named = std::get_if<TyNamed>(&obj_ty->ty)) {
     type_name = named->name;
@@ -2094,11 +2250,15 @@ typed::TypedBlock Typechecker::check_block(const ast::Block &block) {
 
   for (auto &stmt : block.statements) {
     auto checked = check_stmt(*stmt);
-    result.stmts.push_back(make_unique<typed::TypedStmt>(std::move(checked)));
 
+    // If the statement is an expression, the block's type is the expression's
+    // type (blocks return the value of their last expression)
     if (std::holds_alternative<unique_ptr<typed::TypedExpr>>(checked.value)) {
-      result.ty = make_unit(block.span);
+      auto &expr = std::get<unique_ptr<typed::TypedExpr>>(checked.value);
+      result.ty = expr->ty;
     }
+
+    result.stmts.push_back(make_unique<typed::TypedStmt>(std::move(checked)));
   }
 
   pop_scope();
@@ -2242,6 +2402,10 @@ typed::TypedStmt Typechecker::check_stmt(const ast::Stmt &stmt) {
 typed::TypedFnDecl Typechecker::check_fn(const ast::FnDecl &decl) {
   push_scope();
 
+  // Set current function name for where clause lookups
+  string saved_fn_name = current_fn_name;
+  current_fn_name = decl.name;
+
   map<string, uint32_t> saved_vars;
   if (!decl.generic_params.empty()) {
     for (size_t i = 0; i < decl.generic_params.size(); i++) {
@@ -2277,6 +2441,7 @@ typed::TypedFnDecl Typechecker::check_fn(const ast::FnDecl &decl) {
     current_type_vars.erase(kv.first);
   }
   pop_scope();
+  current_fn_name = saved_fn_name;
 
   auto fn_ty = make_shared<Type>();
   fn_ty->ty = FnTy{param_types, ret_type};
@@ -2454,7 +2619,105 @@ typed::TypedExpr Typechecker::check_expr(const ast::Expr &expr) {
           return std::move(*result);
 
         } else if constexpr (std::is_same_v<T, ast::GenericIdent>) {
-          throw TypeError("generic instantiation not implemented", e.span);
+          // Generic instantiation: ident[T1, T2, ...]
+          // Look up the function
+          string fn_name = e.name;
+          if (!functions.contains(fn_name)) {
+            throw TypeError("unknown function: " + fn_name, e.span);
+          }
+
+          auto &fn_def = functions.at(fn_name);
+          auto fn_ty_ref = fn_def.ty;
+
+          // Must be a generic function (ForAll)
+          auto *forall = std::get_if<ForAll>(&fn_ty_ref->ty);
+          if (!forall) {
+            throw TypeError("function is not generic: " + fn_name, e.span);
+          }
+
+          // Check type argument count matches
+          if (e.type_args.size() != forall->vars.size()) {
+            throw TypeError("generic argument count mismatch: expected " +
+                                to_string(forall->vars.size()) + ", got " +
+                                to_string(e.type_args.size()),
+                            e.span);
+          }
+
+          // Build substitution map from explicit type arguments
+          map<uint32_t, TypeRef> subst;
+          map<string, TypeRef> type_param_to_ty; // for where clause checking
+          for (size_t i = 0; i < e.type_args.size(); i++) {
+            auto ty = resolve_type(*e.type_args[i]);
+            subst[forall->vars[i].second] = ty;
+            type_param_to_ty[forall->vars[i].first] = ty;
+          }
+
+          // Check where clause constraints
+          for (auto &constraint : fn_def.where_clause) {
+            if (!type_param_to_ty.contains(constraint.type_param)) {
+              continue;
+            }
+            auto concrete_ty = type_param_to_ty.at(constraint.type_param);
+
+            // Get the concrete type name
+            string type_name;
+            if (auto named = std::get_if<TyNamed>(&concrete_ty->ty)) {
+              type_name = named->name;
+            } else {
+              throw TypeError("type parameter '" + constraint.type_param +
+                                  "' must be a concrete type",
+                              e.span);
+            }
+
+            // Check that the type satisfies all required interfaces
+            for (auto &iface_name : constraint.interfaces) {
+              check_satisfies(type_name, iface_name, e.span);
+            }
+          }
+
+          // Apply substitution to instantiate the function type
+          function<TypeRef(TypeRef)> substitute;
+          substitute = [&](TypeRef ty) -> TypeRef {
+            return std::visit(
+                [&](auto &&inner) -> TypeRef {
+                  using U = std::decay_t<decltype(inner)>;
+                  if constexpr (std::is_same_v<U, TyVar>) {
+                    if (subst.contains(inner.id)) {
+                      return subst.at(inner.id);
+                    }
+                    return ty;
+                  } else if constexpr (std::is_same_v<U, TyNamed>) {
+                    vector<TypeRef> new_args;
+                    for (auto &arg : inner.args) {
+                      new_args.push_back(substitute(arg));
+                    }
+                    auto result = make_shared<Type>();
+                    result->ty = TyNamed{inner.name, inner.kind, new_args};
+                    result->span = ty->span;
+                    return result;
+                  } else if constexpr (std::is_same_v<U, FnTy>) {
+                    vector<TypeRef> new_args;
+                    for (auto &arg : inner.args) {
+                      new_args.push_back(substitute(arg));
+                    }
+                    auto result = make_shared<Type>();
+                    result->ty = FnTy{new_args, substitute(inner.return_type)};
+                    result->span = ty->span;
+                    return result;
+                  }
+                  return ty;
+                },
+                ty->ty);
+          };
+
+          auto instantiated_fn_ty = substitute(forall->body);
+
+          auto result = make_shared<typed::TypedExpr>();
+          result->span = e.span;
+          result->ty = instantiated_fn_ty;
+          result->value =
+              typed::IdentifierExpr{e.span, fn_name, instantiated_fn_ty};
+          return std::move(*result);
 
         } else if constexpr (std::is_same_v<T, ast::TypeInit>) {
           throw TypeError("type init not implemented", e.span);
