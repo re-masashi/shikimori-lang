@@ -3,7 +3,7 @@
 extern c_puts(*u8)
 
 // Recursive
-fn fib_recursive(n: i64) -> i64 {
+fn fib_recursive(n: i32) -> i32 {
     if n <= 1 {
         return n;
     }
@@ -11,7 +11,7 @@ fn fib_recursive(n: i64) -> i64 {
 }
 
 // Iterative
-fn fib_iter(n: i64) -> i64 {
+fn fib_iter(n: i32) -> i32 {
     if n <= 1 { return n; }
 
     let a = 0;
@@ -31,5 +31,5 @@ fn fib_iter(n: i64) -> i64 {
 fn main() {
     let n = 10;
     let result = fib_iter(n);
-    c_puts("done");
+    c_puts("done" as *u8);
 }

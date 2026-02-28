@@ -1,5 +1,5 @@
 extern c_puts(*u8)
 
 fn main() {
-    c_puts("Hello, world!");
+    c_puts("Hello, world!" as *u8);
 }

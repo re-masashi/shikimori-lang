@@ -15,6 +15,102 @@ using namespace typed;
 
 namespace shikimori {
 
+// Helper to get a string representation of a type for error messages
+string type_to_string(const TypeRef &ty);
+
+string type_var_to_string(const TypeRef &ty) {
+  if (!ty)
+    return "unknown";
+
+  return std::visit(
+      [](auto &&arg) -> string {
+        using T = std::decay_t<decltype(arg)>;
+        if constexpr (std::is_same_v<T, TyVar>) {
+          return arg.name;
+        } else if constexpr (std::is_same_v<T, ETVar>) {
+          return arg.name;
+        } else if constexpr (std::is_same_v<T, TyNamed>) {
+          return arg.name;
+        } else if constexpr (std::is_same_v<T, FnTy>) {
+          return "function";
+        } else if constexpr (std::is_same_v<T, ForAll>) {
+          return "generic";
+        } else if constexpr (std::is_same_v<T, TyArray>) {
+          return "array";
+        } else if constexpr (std::is_same_v<T, TyInterfaceObj>) {
+          return "interface object";
+        }
+        return "unknown";
+      },
+      ty->ty);
+}
+
+string type_to_string(const TypeRef &ty) {
+  if (!ty)
+    return "unknown";
+
+  return std::visit(
+      [](auto &&arg) -> string {
+        using T = std::decay_t<decltype(arg)>;
+        if constexpr (std::is_same_v<T, TyVar>) {
+          return arg.name;
+        } else if constexpr (std::is_same_v<T, ETVar>) {
+          return arg.name;
+        } else if constexpr (std::is_same_v<T, TyNamed>) {
+          if (arg.kind == Pointer) {
+            return "*" + type_to_string(arg.args[0]);
+          } else if (arg.kind == Slice) {
+            return "[]" + type_to_string(arg.args[0]);
+          }
+          if (arg.args.empty()) {
+            return arg.name;
+          }
+          string result = arg.name + "[";
+          for (size_t i = 0; i < arg.args.size(); i++) {
+            if (i > 0)
+              result += ",";
+            result += type_to_string(arg.args[i]);
+          }
+          result += "]";
+          return result;
+        } else if constexpr (std::is_same_v<T, FnTy>) {
+          string result = "fn(";
+          for (size_t i = 0; i < arg.args.size(); i++) {
+            if (i > 0)
+              result += ",";
+            result += type_to_string(arg.args[i]);
+          }
+          result += ")->";
+          result += type_to_string(arg.return_type);
+          return result;
+        } else if constexpr (std::is_same_v<T, ForAll>) {
+          string result = "forall ";
+          for (size_t i = 0; i < arg.vars.size(); i++) {
+            if (i > 0)
+              result += ",";
+            result += arg.vars[i].first;
+          }
+          result += ". ";
+          result += type_to_string(arg.body);
+          return result;
+        } else if constexpr (std::is_same_v<T, TyArray>) {
+          return "[" + type_to_string(arg.inner) + ";" +
+                 std::to_string(arg.size) + "]";
+        } else if constexpr (std::is_same_v<T, TyInterfaceObj>) {
+          string result = "dyn ";
+          for (size_t i = 0; i < arg.interfaces.size(); i++) {
+            if (i > 0)
+              result += " + ";
+            result += arg.interfaces[i];
+          }
+          result += " { data=" + type_to_string(arg.data_ty) + " }";
+          return result;
+        }
+        return "unknown";
+      },
+      ty->ty);
+}
+
 void Typechecker::collect(const ast::Program &program) {
   import_resolver.collect(program);
 
@@ -638,16 +734,13 @@ TypeRef Typechecker::instantiate(const ForAll &scheme) {
   return do_subst(scheme.body);
 }
 
-// Unification
 void Typechecker::unify(TypeRef a, TypeRef b, Span span) {
   a = apply_solutions(a);
   b = apply_solutions(b);
 
-  // Same type
   if (a == b)
     return;
 
-  // Solve existential
   if (auto etvar = std::get_if<ETVar>(&a->ty)) {
     ty_solutions[etvar->id] = b;
     return;
@@ -662,8 +755,9 @@ void Typechecker::unify(TypeRef a, TypeRef b, Span span) {
   if (auto named_a = std::get_if<TyNamed>(&a->ty)) {
     if (auto named_b = std::get_if<TyNamed>(&b->ty)) {
       if (named_a->name != named_b->name || named_a->kind != named_b->kind) {
-        throw TypeError(
-            "type mismatch: " + named_a->name + " vs " + named_b->name, span);
+        throw TypeError("type mismatch: " + type_to_string(a) + " vs " +
+                            type_to_string(b),
+                        span);
       }
       if (named_a->args.size() != named_b->args.size()) {
         throw TypeError("arity mismatch for " + named_a->name, span);
@@ -1012,34 +1106,6 @@ static bool is_cast_allowed(const TypeRef &src_ty, const TypeRef &dst_ty,
   }
 
   return false;
-}
-
-// Helper to get a string representation of a type for error messages
-static string type_to_string(const TypeRef &ty) {
-  if (!ty)
-    return "unknown";
-
-  return std::visit(
-      [](auto &&arg) -> string {
-        using T = std::decay_t<decltype(arg)>;
-        if constexpr (std::is_same_v<T, TyVar>) {
-          return "type var " + arg.name;
-        } else if constexpr (std::is_same_v<T, ETVar>) {
-          return "type var " + arg.name;
-        } else if constexpr (std::is_same_v<T, TyNamed>) {
-          return arg.name;
-        } else if constexpr (std::is_same_v<T, FnTy>) {
-          return "function";
-        } else if constexpr (std::is_same_v<T, ForAll>) {
-          return "generic";
-        } else if constexpr (std::is_same_v<T, TyArray>) {
-          return "array";
-        } else if constexpr (std::is_same_v<T, TyInterfaceObj>) {
-          return "interface object";
-        }
-        return "unknown";
-      },
-      ty->ty);
 }
 
 typed::TypedExpr Typechecker::check_call(const ast::Call &call, Span span) {
