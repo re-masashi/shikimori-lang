@@ -1,7 +1,15 @@
 #include "import_resolver.h"
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
+#include <iterator>
+#include <utility>
+#include <variant>
+
+#include "parser/parser.h"
+#include "parser/tokenizer.hpp"
+#include "span.h"
 
 namespace shikimori {
 

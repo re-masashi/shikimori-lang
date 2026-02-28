@@ -1,4 +1,16 @@
 #include "parser.h"
+#include <filesystem>
+#include <memory>
+#include <optional>
+#include <ranges>
+#include <stddef.h>
+#include <string>
+#include <utility>
+#include <variant>
+#include <vector>
+
+#include "parser/tokenizer.hpp"
+#include "span.h"
 
 using namespace std;
 

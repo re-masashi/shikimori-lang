@@ -1,13 +1,18 @@
 #pragma once
 
 #include <filesystem>
+#include <initializer_list>
 #include <memory>
 #include <optional>
+#include <stddef.h>
+#include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
 
-#include "../ast/ast.h"
+#include "../ast/ast_decl.hpp"
+#include "../ast/ast_expr.hpp"
+#include "../ast/ast_stmt.hpp"
 #include "../span.h"
 #include "tokenizer.hpp"
 

@@ -3,8 +3,11 @@
 #include "parser/tokenizer.hpp"
 #include <expected>
 #include <filesystem>
+#include <format>
 #include <fstream>
+#include <optional>
 #include <print>
+#include <stdio.h>
 #include <string>
 #include <string_view>
 #include <vector>

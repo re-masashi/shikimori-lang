@@ -1,6 +1,16 @@
 #include "ast_printer.h"
-#include "ast.h"
+#include <memory>
+#include <optional>
+#include <stddef.h>
+#include <string>
+#include <type_traits>
+#include <utility>
+#include <variant>
+#include <vector>
+
+#include "ast/ast.h"
 #include "color.hpp"
+#include "span.h"
 
 using namespace std;
 

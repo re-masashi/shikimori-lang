@@ -1,6 +1,18 @@
 #include "parser/parser.h"
 #include "typechecker/typechecker.h"
 #include <doctest/doctest.h>
+#include <map>
+#include <memory>
+#include <optional>
+#include <string>
+#include <utility>
+#include <variant>
+#include <vector>
+
+#include "ast/typedast.h"
+#include "parser/tokenizer.hpp"
+#include "span.h"
+#include "types.h"
 
 using namespace shikimori;
 

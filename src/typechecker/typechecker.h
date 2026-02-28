@@ -1,14 +1,46 @@
 #pragma once
 #include <cstdint>
+#include <format>
 #include <map>
+#include <memory>
 #include <optional>
+#include <ranges>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
-#include "ast/ast.h"
 #include "ast/typedast.h"
+#include "span.h"
 #include "typechecker/import_resolver.h"
+#include "types.h"
+
+namespace shikimori {
+namespace ast {
+struct BinaryExpr;
+struct Block;
+struct BuiltinCall;
+struct Call;
+struct Expr;
+struct ExternDecl;
+struct FieldAccess;
+struct FnDecl;
+struct IfExpr;
+struct ImportItem;
+struct InterfaceDecl;
+struct MatchExpr;
+struct MethodCall;
+struct Program;
+struct ScopeAccess;
+struct Stmt;
+struct StructDecl;
+struct StructInit;
+struct TypeAnnot;
+struct UnaryExpr;
+struct UnionDecl;
+struct UseDecl;
+} // namespace ast
+} // namespace shikimori
 
 using namespace std;
 using namespace shikimori;

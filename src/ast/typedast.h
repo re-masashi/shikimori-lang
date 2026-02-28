@@ -7,7 +7,8 @@
 
 #include "../span.h"
 #include "../types.h"
-#include "ast.h"
+#include "ast/ast_expr.hpp"
+#include "ast/ast_stmt.hpp"
 
 using namespace std;
 

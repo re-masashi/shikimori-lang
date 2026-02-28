@@ -1,12 +1,12 @@
 #pragma once
 
-#include "ast.h"
 #include <iostream>
 
-using namespace std;
-
 namespace shikimori {
+namespace ast {
+struct Program;
+}
 
-void dump_ast(const ast::Program &program, ostream &os = cout);
+void dump_ast(const ast::Program &program, std::ostream &os = std::cout);
 
 } // namespace shikimori

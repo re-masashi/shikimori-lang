@@ -3,6 +3,7 @@
 #include <format>
 #include <utility>
 
+#include "span.h"
 #include "tokenizer.hpp"
 
 using namespace std;

@@ -1,3 +1,5 @@
+#pragma once
+
 #include "span.h"
 #include <cstdint>
 #include <map>

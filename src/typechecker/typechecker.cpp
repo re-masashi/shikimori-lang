@@ -1,9 +1,11 @@
 #include <algorithm>
 #include <functional>
+#include <memory>
+#include <stddef.h>
+#include <type_traits>
 #include <utility>
 #include <variant>
 
-#include "ast/ast.h"
 #include "ast/typedast.h"
 #include "typechecker.h"
 
@@ -1174,7 +1176,6 @@ typed::TypedExpr Typechecker::check_field_access(const ast::FieldAccess &fa,
   }
 
   TypeRef field_ty = nullptr;
-  size_t field_idx = 0;
   for (auto &[fname, fty] : s.fields) {
     if (fname == fa.field) {
       // Apply substitution to get the actual field type
@@ -1189,7 +1190,6 @@ typed::TypedExpr Typechecker::check_field_access(const ast::FieldAccess &fa,
       }
       break;
     }
-    field_idx++;
   }
 
   if (!field_ty) {

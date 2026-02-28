@@ -1,15 +1,12 @@
 #pragma once
-#include <filesystem>
-#include <fstream>
 #include <map>
+#include <memory>
 #include <optional>
 #include <set>
 #include <string>
 #include <vector>
 
-#include "ast/ast.h"
-#include "parser/parser.h"
-#include "parser/tokenizer.hpp"
+#include "ast/ast_decl.hpp"
 
 using namespace std;
 
