@@ -1,11 +1,13 @@
-#include "ast/ast_printer.h"
+// #include "ast/ast_printer.h"
 #include "parser/parser.h"
 #include "parser/tokenizer.hpp"
+#include "typechecker/typechecker.h"
+#include "ast/typed_ast_printer.h"
+#include "error_reporter.h"
 #include <expected>
 #include <filesystem>
 #include <format>
 #include <fstream>
-#include <optional>
 #include <print>
 #include <stdio.h>
 #include <string>
@@ -61,7 +63,15 @@ int main(int argc, char *argv[]) {
           return 1;
         }
 
-        dump_ast(*program);
+        // dump_ast(*program);
+        try {
+          Typechecker tc;
+          auto typed_program = tc.run(*program);
+          dump_typed_ast(typed_program);
+        } catch (const TypeError &e) {
+          report_error(source, e.span, "type error", e.what());
+          return 1;
+        }
         return 0;
       })
       .or_else([](const string &error) -> expected<int, string> {
