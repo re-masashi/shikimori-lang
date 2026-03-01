@@ -58,7 +58,7 @@ int main(int argc, char *argv[]) {
 
         if (!program) {
           for (const auto &err : parser.get_errors()) {
-            print(stderr, "{}\n", err);
+            report_error(source, err.span, "parse error", err.message);
           }
           return 1;
         }

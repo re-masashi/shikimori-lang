@@ -115,8 +115,7 @@ Span Parser::get_span_from(size_t offset) const {
 }
 
 void Parser::report_error(const Span &span, const char *message) {
-  errors.push_back(format("Error at {}:{}:{}: {}", span.file.string(),
-                          span.start, span.end, message));
+  errors.emplace_back(span, message);
 }
 
 void Parser::report_error(const char *message) {
@@ -126,26 +125,25 @@ void Parser::report_error(const char *message) {
 
 void Parser::report_error_at_current(const char *message) {
   auto span = get_current_span();
-  errors.push_back(format("Error at {}:{}:{}: {} (got '{}')",
-                          span.file.string(), span.start, span.end, message,
-                          current().lexeme));
+  errors.emplace_back(span, format("{} (got '{}')", message, current().lexeme));
 }
 
 void Parser::report_expected_but_got(const char *expected, const Token &got) {
-  errors.push_back(format("Error at {}:{}: Expected {} but got '{}'",
-                          file.string(), got.start, expected, got.lexeme));
+  Span span(got.start, got.end, file);
+  errors.emplace_back(span,
+                      format("Expected {} but got '{}'", expected, got.lexeme));
 }
 
 void Parser::report_unexpected_token(const Token &token) {
-  errors.push_back(format("Error at {}:{}: Unexpected token '{}'",
-                          file.string(), token.start, token.lexeme));
+  Span span(token.start, token.end, file);
+  errors.emplace_back(span, format("Unexpected token '{}'", token.lexeme));
 }
 
 void Parser::report_unexpected_token() { report_unexpected_token(current()); }
 
 bool Parser::has_errors() const { return !errors.empty(); }
 
-const vector<string> &Parser::get_errors() const { return errors; }
+const vector<ParserError> &Parser::get_errors() const { return errors; }
 
 void Parser::clear_errors() { errors.clear(); }
 

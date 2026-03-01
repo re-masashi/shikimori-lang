@@ -20,6 +20,14 @@ using namespace std;
 
 namespace shikimori {
 
+struct ParserError {
+  Span span;
+  string message;
+
+  ParserError(const Span &span, string msg)
+      : span(span), message(std::move(msg)) {}
+};
+
 class Parser {
 public:
   explicit Parser(string_view source,
@@ -58,7 +66,7 @@ public:
   void report_unexpected_token();
 
   bool has_errors() const;
-  const vector<string> &get_errors() const;
+  const vector<ParserError> &get_errors() const;
   void clear_errors();
 
   optional<ast::Decl> parse_declaration();
@@ -137,7 +145,7 @@ private:
   filesystem::path file;
   vector<Token> tokens;
   size_t current_pos;
-  vector<string> errors;
+  vector<ParserError> errors;
 
   // Helper to get span for previous N tokens
   Span get_span_from(size_t offset) const;

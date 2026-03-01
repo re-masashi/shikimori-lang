@@ -634,7 +634,7 @@ TypeRef Typechecker::resolve_type(const ast::TypeAnnot &annot) {
           else if (unions.contains(t.name))
             ty->ty = TyNamed{t.name, Union, args};
           else
-            throw TypeError("unknown type: " + t.name, annot.span);
+            throw TypeError("unknown type: " + t.name, t.span);
 
           return ty;
         }
