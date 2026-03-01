@@ -47,6 +47,7 @@ add_executable(shikimori
   src/typechecker/typechecker.cpp
   src/typechecker/import_resolver.cpp
   src/error_reporter.cpp
+  src/color.cpp
   src/span.cpp
 )
 

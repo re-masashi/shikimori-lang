@@ -1,6 +1,8 @@
 #pragma once
 
 #include <ostream>
+#include <string>
+#include <string_view>
 
 using namespace std;
 
@@ -22,6 +24,9 @@ struct Color {
   static constexpr const char *BOLD_YELLOW = "\033[1;33m";
   static constexpr const char *BOLD_BLUE = "\033[1;34m";
 };
+
+/// Apply syntax highlighting to a line of source code
+string highlight_syntax(string_view source_line);
 
 class ColoredOstream {
 public:

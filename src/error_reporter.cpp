@@ -86,13 +86,15 @@ void report_error(string_view source, const Span &span,
 
   if (line_num > 1) {
     string_view prev_line = get_line(source, line_num - 1);
+    string highlighted = highlight_syntax(prev_line);
     cerr << Color::GRAY << "  " << string(line_num_width, ' ') << " |\n"
          << "  " << (line_num - 1) << " | " << Color::RESET
-         << prev_line << "\n";
+         << highlighted << "\n";
   }
 
   string_view error_line = get_line(source, line_num);
-  cerr << Color::GRAY << "  " << line_num << " | " << Color::RESET << error_line << "\n";
+  string highlighted = highlight_syntax(error_line);
+  cerr << Color::GRAY << "  " << line_num << " | " << Color::RESET << highlighted << "\n";
 
   cerr << Color::GRAY << "  " << string(line_num_width, ' ') << "   "
        << Color::RESET;
@@ -115,8 +117,9 @@ void report_error(string_view source, const Span &span,
   size_t total_lines = get_line_number(source, source.size());
   if (line_num < total_lines) {
     string_view next_line = get_line(source, line_num + 1);
+    string highlighted = highlight_syntax(next_line);
     cerr << Color::GRAY << "  " << (line_num + 1) << " | " << Color::RESET
-         << next_line << "\n";
+         << highlighted << "\n";
   }
 
   cerr << "\n";
