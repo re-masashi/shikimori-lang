@@ -26,7 +26,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # endif()
 #
 option(SANITIZE "Enable Address and Undefined Sanitizers" ON)
-option(BUILD_TESTS "Build the tests" ON)
+option(BUILD_TESTS "Build the tests" OFF)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_compile_options(-Wall -Wextra -Wpedantic -g)
@@ -88,7 +88,7 @@ if(BUILD_TESTS)
         ${PROJECT_SOURCE_DIR}/tests
     )
 
-    # Precompiled headers for tests too
+    # Precompiled headers for tests
     target_precompile_headers(test_runner PRIVATE
         <vector>
         <string>

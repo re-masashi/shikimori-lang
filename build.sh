@@ -31,7 +31,7 @@ if [[ $1 == "test" ]]; then
   exit
 fi
 
-cmake -S . -B build -G Ninja -DCMAKE_EXPORT_COMPILE_COMMANDS=ON && cmake --build build
+cmake -S . -B build -G Ninja -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DBUILD_TESTS=OFF && cmake --build build
 
 if [[ $? -ne 0 ]]; then
   echo "Build failed"
