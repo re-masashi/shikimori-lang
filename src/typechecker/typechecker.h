@@ -117,7 +117,11 @@ public:
 
   void collect_fn(const ast::FnDecl &decl, const string &name_prefix = "");
   void collect_struct(const ast::StructDecl &decl);
+  void collect_struct_decl_only(const ast::StructDecl &decl);
+  void collect_struct_methods(const ast::StructDecl &decl);
   void collect_union(const ast::UnionDecl &decl);
+  void collect_union_decl_only(const ast::UnionDecl &decl);
+  void collect_union_methods(const ast::UnionDecl &decl);
   void collect_interface(const ast::InterfaceDecl &decl);
   void collect_extern(const ast::ExternDecl &decl);
 

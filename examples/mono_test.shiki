@@ -1,0 +1,57 @@
+fn identity[T](x: T) -> T {
+    return x;
+}
+
+struct Pair[A, B] {
+    first: A,
+    second: B,
+}
+
+union Option[T] {
+    some: T,
+    none,
+}
+
+fn make_pair[A, B](a: A, b: B) -> Pair[A, B] {
+    return Pair[A, B] { first: a, second: b, };
+}
+
+fn test_generics() -> i32 {
+    let x: i32 = identity[i32](42);
+    
+    let y: f64 = identity[f64](3.14);
+    
+    let p = Pair[i32, f64] { first: 10, second: 2.5, };
+    
+    let p2 = make_pair[i32, f64](100, 4.5);
+    
+    let opt = Option[i32]::some(99);
+    
+    let opt_str = Option[string]::some("hello");
+    
+    return x;
+}
+
+struct Container[T] {
+    value: T,
+    
+    fn get(self) -> T {
+        return self.value;
+    }
+    
+    fn set(self, v: T) {
+        self.value = v;
+    }
+}
+
+fn test_container() -> i32 {
+    let c = Container[i32] { value: 42, };
+    let v = c.get();
+    return v;
+}
+
+fn main() -> i32 {
+    let r1 = test_generics();
+    let r2 = test_container();
+    return r1 + r2;
+}

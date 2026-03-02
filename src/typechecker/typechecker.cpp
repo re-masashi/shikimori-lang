@@ -143,16 +143,13 @@ void Typechecker::collect_from_program_filtered(
   };
 
   for (auto &declaration : program.declarations) {
-    if (auto *fn = std::get_if<ast::FnDecl>(&declaration.value)) {
-      if (should_import(fn->name))
-        collect_fn(*fn);
-    } else if (auto *strct = std::get_if<ast::StructDecl>(&declaration.value)) {
+    if (auto *strct = std::get_if<ast::StructDecl>(&declaration.value)) {
       if (should_import(strct->name))
-        collect_struct(*strct);
+        collect_struct_decl_only(*strct);
     } else if (auto *union_decl =
                    std::get_if<ast::UnionDecl>(&declaration.value)) {
       if (should_import(union_decl->name))
-        collect_union(*union_decl);
+        collect_union_decl_only(*union_decl);
     } else if (auto *iface =
                    std::get_if<ast::InterfaceDecl>(&declaration.value)) {
       if (should_import(iface->name))
@@ -160,6 +157,20 @@ void Typechecker::collect_from_program_filtered(
     } else if (auto *ext = std::get_if<ast::ExternDecl>(&declaration.value)) {
       if (should_import(ext->name))
         collect_extern(*ext);
+    }
+  }
+
+  for (auto &declaration : program.declarations) {
+    if (auto *fn = std::get_if<ast::FnDecl>(&declaration.value)) {
+      if (should_import(fn->name))
+        collect_fn(*fn);
+    } else if (auto *strct = std::get_if<ast::StructDecl>(&declaration.value)) {
+      if (should_import(strct->name))
+        collect_struct_methods(*strct);
+    } else if (auto *union_decl =
+                   std::get_if<ast::UnionDecl>(&declaration.value)) {
+      if (should_import(union_decl->name))
+        collect_union_methods(*union_decl);
     }
   }
 }
@@ -272,6 +283,11 @@ void Typechecker::collect_fn(const ast::FnDecl &decl,
 }
 
 void Typechecker::collect_struct(const ast::StructDecl &decl) {
+  collect_struct_decl_only(decl);
+  collect_struct_methods(decl);
+}
+
+void Typechecker::collect_struct_decl_only(const ast::StructDecl &decl) {
   StructDef def;
 
   map<string, uint32_t> saved_vars;
@@ -313,6 +329,20 @@ void Typechecker::collect_struct(const ast::StructDecl &decl) {
 
   structs[decl.name] = def;
 
+  for (auto &kv : saved_vars) {
+    current_type_vars.erase(kv.first);
+  }
+}
+
+void Typechecker::collect_struct_methods(const ast::StructDecl &decl) {
+  map<string, uint32_t> saved_vars;
+  if (!decl.generic_params.empty()) {
+    for (size_t i = 0; i < decl.generic_params.size(); i++) {
+      current_type_vars[decl.generic_params[i].name] = static_cast<uint32_t>(i);
+      saved_vars[decl.generic_params[i].name] = static_cast<uint32_t>(i);
+    }
+  }
+
   // Collect methods with type prefix (type vars still active)
   for (auto &method : decl.methods) {
     collect_fn(method, decl.name);
@@ -325,6 +355,11 @@ void Typechecker::collect_struct(const ast::StructDecl &decl) {
 }
 
 void Typechecker::collect_union(const ast::UnionDecl &decl) {
+  collect_union_decl_only(decl);
+  collect_union_methods(decl);
+}
+
+void Typechecker::collect_union_decl_only(const ast::UnionDecl &decl) {
   UnionDef def;
 
   map<string, uint32_t> saved_vars;
@@ -373,6 +408,20 @@ void Typechecker::collect_union(const ast::UnionDecl &decl) {
   }
 
   unions[decl.name] = def;
+
+  for (auto &kv : saved_vars) {
+    current_type_vars.erase(kv.first);
+  }
+}
+
+void Typechecker::collect_union_methods(const ast::UnionDecl &decl) {
+  map<string, uint32_t> saved_vars;
+  if (!decl.generic_params.empty()) {
+    for (size_t i = 0; i < decl.generic_params.size(); i++) {
+      current_type_vars[decl.generic_params[i].name] = static_cast<uint32_t>(i);
+      saved_vars[decl.generic_params[i].name] = static_cast<uint32_t>(i);
+    }
+  }
 
   // Collect methods with type prefix (type vars still active)
   for (auto &method : decl.methods) {
@@ -911,7 +960,7 @@ void Typechecker::unify(TypeRef a, TypeRef b, Span span) {
   if (a == b)
     return;
 
-  // Handle ETVar
+  // Handle ETVar (existential type variable - to be inferred)
   if (auto etvar = std::get_if<ETVar>(&a->ty)) {
     ty_solutions[etvar->id] = b;
     return;
@@ -919,6 +968,18 @@ void Typechecker::unify(TypeRef a, TypeRef b, Span span) {
 
   if (auto etvar = std::get_if<ETVar>(&b->ty)) {
     ty_solutions[etvar->id] = a;
+    return;
+  }
+
+  // Handle TyVar (generic type parameter - e.g., T in fn identity[T](x: T) -> T)
+  // TyVar should be unified by binding it to the other type
+  if (auto tvar = std::get_if<TyVar>(&a->ty)) {
+    ty_solutions[tvar->id] = b;
+    return;
+  }
+
+  if (auto tvar = std::get_if<TyVar>(&b->ty)) {
+    ty_solutions[tvar->id] = a;
     return;
   }
 
