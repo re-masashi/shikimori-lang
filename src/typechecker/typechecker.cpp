@@ -971,8 +971,8 @@ void Typechecker::unify(TypeRef a, TypeRef b, Span span) {
     return;
   }
 
-  // Handle TyVar (generic type parameter - e.g., T in fn identity[T](x: T) -> T)
-  // TyVar should be unified by binding it to the other type
+  // Handle TyVar (generic type parameter - e.g., T in fn identity[T](x: T) ->
+  // T) TyVar should be unified by binding it to the other type
   if (auto tvar = std::get_if<TyVar>(&a->ty)) {
     ty_solutions[tvar->id] = b;
     return;

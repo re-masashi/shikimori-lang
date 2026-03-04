@@ -46,6 +46,7 @@ add_executable(shikimori
   src/ast/typed_ast_printer.cpp
   src/typechecker/typechecker.cpp
   src/typechecker/import_resolver.cpp
+  src/monomorphization/monomorphizer.cpp
   src/error_reporter.cpp
   src/color.cpp
   src/span.cpp

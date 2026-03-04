@@ -46,11 +46,11 @@ static void dump_type(const TypeRef &type, ostream &os) {
       [&](auto &&ty) {
         using T = decay_t<decltype(ty)>;
         if constexpr (is_same_v<T, TyVar>) {
-          os << Color::CYAN << "TyVar" << Color::RESET << " " << ty.name
-             << " #" << ty.id;
+          os << Color::CYAN << "TyVar" << Color::RESET << " " << ty.name << " #"
+             << ty.id;
         } else if constexpr (is_same_v<T, ETVar>) {
-          os << Color::CYAN << "ETVar" << Color::RESET << " " << ty.name
-             << " #" << ty.id;
+          os << Color::CYAN << "ETVar" << Color::RESET << " " << ty.name << " #"
+             << ty.id;
         } else if constexpr (is_same_v<T, TyNamed>) {
           os << Color::CYAN << "TyNamed" << Color::RESET << " " << ty.name;
           switch (ty.kind) {

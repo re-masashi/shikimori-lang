@@ -3,6 +3,7 @@
 #include "parser/tokenizer.hpp"
 #include "typechecker/typechecker.h"
 #include "ast/typed_ast_printer.h"
+#include "monomorphization/monomorphizer.h"
 #include "error_reporter.h"
 #include <expected>
 #include <filesystem>
@@ -46,6 +47,7 @@ int main(int argc, char *argv[]) {
   }
 
   const string_view source_file = args[1];
+
   auto filepath = filesystem::path(source_file);
 
   return read_source(source_file)
@@ -67,7 +69,10 @@ int main(int argc, char *argv[]) {
         try {
           Typechecker tc;
           auto typed_program = tc.run(*program);
-          dump_typed_ast(typed_program);
+
+            Monomorphizer mono(tc);
+            auto mono_program = mono.run(typed_program);
+            dump_typed_ast(mono_program);
         } catch (const TypeError &e) {
           report_error(source, e.span, "type error", e.what());
           return 1;
