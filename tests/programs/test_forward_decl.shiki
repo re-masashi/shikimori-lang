@@ -1,0 +1,11 @@
+struct Outer[T] {
+  inner: Container[T],
+}
+
+struct Container[T] {
+  val: T,
+}
+
+fn main() {
+  let x = Outer{inner: Container { val: 0, }, };
+}
