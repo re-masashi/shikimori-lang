@@ -1,0 +1,35 @@
+struct Box[T] {
+    data: T,
+
+    fn new(val: T) -> Box[T] {
+        return Box[T] { data: val, };
+    }
+
+    fn get(self) -> T {
+        return self.data;
+    }
+
+    fn set(self, val: T) {
+        self.data = val;
+    }
+}
+
+fn test_multiple_instantiations() {
+    // Box[i32]
+    let bi = Box[i32]::new(42);
+    let val_i = bi.get();
+    bi.set(100);
+    
+    // Box[string]
+    let bs = Box[string]::new("hello");
+    let val_s = bs.get();
+    bs.set("world");
+    
+    // Box[f64]
+    let bf = Box[f64]::new(3.14);
+    let val_f = bf.get();
+}
+
+fn main() {
+    test_multiple_instantiations();
+}

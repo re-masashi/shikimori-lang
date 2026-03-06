@@ -1,0 +1,50 @@
+struct Counter {
+    value: i32,
+
+    fn new(initial: i32) -> Counter {
+        return Counter { value: initial, };
+    }
+
+    fn increment(self) {
+        self.value = self.value + 1;
+    }
+
+    fn get_value(self) -> i32 {
+        return self.value;
+    }
+
+    fn add(self, x: i32) -> i32 {
+        return self.value + x;
+    }
+}
+
+struct Container[T] {
+    data: T,
+
+    fn new(val: T) -> Container[T] {
+        return Container[T] { data: val, };
+    }
+
+    fn get(self) -> T {
+        return self.data;
+    }
+
+    fn set(self, val: T) {
+        self.data = val;
+    }
+}
+
+fn test_basic_methods() {
+    let c = Counter::new(5);
+    c.increment();
+    let v = c.get_value();
+    let sum = c.add(10);
+}
+
+fn test_generic_methods() {
+    let ci = Container[i32]::new(42);
+    let val = ci.get();
+    
+    let cs = Container[string]::new("hello");
+    let str = cs.get();
+}

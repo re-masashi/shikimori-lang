@@ -185,6 +185,13 @@ int InstantiationKey::compare_types(const TypeRef &a, const TypeRef &b) {
 }
 
 void Monomorphizer::resolve_etvars(const typed::TypedProgram &program) {
+  // Copy ETVar solutions from typechecker
+  // The typechecker solves ETVars during unification, and we need to use those
+  // solutions in the monomorphizer
+  for (const auto &[id, ty] : typechecker.ty_solutions) {
+    etvar_resolutions[id] = ty;
+  }
+
   // First pass: collect ETVar resolutions from expressions
   for (auto &decl : program.declarations) {
     std::visit(
@@ -258,9 +265,18 @@ void Monomorphizer::resolve_etvars_in_stmt(const typed::TypedStmt &stmt) {
               }
             }
           }
+
+          // Resolve null ETVar in init from let type
+          auto *init_etvar = std::get_if<ETVar>(&s.init->ty->ty);
+          if (init_etvar && init_etvar->name == "null") {
+            etvar_resolutions[init_etvar->id] = s.ty;
+          }
         } else if constexpr (std::is_same_v<T, typed::ReturnStmt>) {
-          if (s.value)
+          if (s.value) {
             resolve_etvars_in_expr(**s.value);
+            // Resolve null ETVar in return value - the value's type should
+            // already be resolved from context during typechecking
+          }
         } else if constexpr (std::is_same_v<T, typed::DeferStmt>) {
           resolve_etvars_in_stmt(*s.stmt);
         } else if constexpr (std::is_same_v<T, typed::LoopStmt>) {
@@ -429,9 +445,42 @@ void Monomorphizer::resolve_etvars_in_expr(const typed::TypedExpr &expr) {
         } else if constexpr (std::is_same_v<T, typed::BinaryExpr>) {
           resolve_etvars_in_expr(*e.left);
           resolve_etvars_in_expr(*e.right);
+
+          // Key insight: In comparisons like `ptr == null`, resolve null's
+          // ETVar from the other operand's concrete type
+          auto *left_named = std::get_if<TyNamed>(&e.left->ty->ty);
+          auto *right_named = std::get_if<TyNamed>(&e.right->ty->ty);
+
+          if (left_named && right_named) {
+            // Check if one side is null (ETVar named "null")
+            auto *left_etvar = std::get_if<ETVar>(&e.left->ty->ty);
+            auto *right_etvar = std::get_if<ETVar>(&e.right->ty->ty);
+
+            if (left_etvar && left_etvar->name == "null" && !right_etvar) {
+              // left is null, resolve from right
+              etvar_resolutions[left_etvar->id] = e.right->ty;
+            } else if (right_etvar && right_etvar->name == "null" &&
+                       !left_etvar) {
+              // right is null, resolve from left
+              etvar_resolutions[right_etvar->id] = e.left->ty;
+            }
+          }
         } else if constexpr (std::is_same_v<T, typed::Assignment>) {
           resolve_etvars_in_expr(*e.target);
           resolve_etvars_in_expr(*e.value);
+
+          // Resolve null ETVar from assignment target type
+          auto *val_etvar = std::get_if<ETVar>(&e.value->ty->ty);
+          if (val_etvar && val_etvar->name == "null" && e.target->ty) {
+            etvar_resolutions[val_etvar->id] = e.target->ty;
+          }
+        } else if constexpr (std::is_same_v<T, typed::AsExpr>) {
+          // Type cast: null as *Type should resolve the null ETVar
+          auto *expr_etvar = std::get_if<ETVar>(&e.expr->ty->ty);
+          if (expr_etvar && expr_etvar->name == "null" && e.target_ty) {
+            etvar_resolutions[expr_etvar->id] = e.target_ty;
+          }
+          resolve_etvars_in_expr(*e.expr);
         } else if constexpr (std::is_same_v<T, typed::IfExpr>) {
           for (auto &branch : e.branches) {
             resolve_etvars_in_expr(*branch.condition);
@@ -870,6 +919,8 @@ void Monomorphizer::validate_type(const TypeRef &ty, Span span) {
         } else if constexpr (std::is_same_v<T, ETVar>) {
           auto it = etvar_resolutions.find(t.id);
           if (it == etvar_resolutions.end()) {
+            fprintf(stderr, "DEBUG: ETVar #%d (%s) not resolved\n", t.id,
+                    t.name.c_str());
             throw MonoError("Early type variable #" + std::to_string(t.id) +
                                 " (" + t.name +
                                 ") was not resolved. All type variables must "
@@ -887,6 +938,8 @@ void Monomorphizer::validate_type(const TypeRef &ty, Span span) {
           }
           validate_type(t.return_type, span);
         } else if constexpr (std::is_same_v<T, ForAll>) {
+          // Skip validation under forall - generic types are validated when
+          // instantiated
         } else if constexpr (std::is_same_v<T, TyArray>) {
           validate_type(t.inner, span);
         } else if constexpr (std::is_same_v<T, TyInterfaceObj>) {

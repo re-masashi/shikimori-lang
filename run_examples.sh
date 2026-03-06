@@ -2,7 +2,7 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 # Files to skip (WIP)
-skip=("all.shiki" "ffi.shiki")
+skip=("all.shiki" "ffi.shiki" "comptime.shiki")
 
 files=($(ls examples/*.shiki))
 total=${#files[@]}

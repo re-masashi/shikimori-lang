@@ -206,17 +206,47 @@ void Typechecker::collect_fn(const ast::FnDecl &decl,
   bool has_self = false;
   for (auto &param : decl.params) {
     if (!param.type) {
-      // Self parameter. Use existential type variable wrapped in pointer (self
-      // is always ref) ETVar will be solved during type inference
+      // Self parameter. For methods on structs/unions, self should be a pointer
+      // to the struct/union type with its type parameters.
       has_self = true;
-      auto self_ty_var = make_shared<Type>();
-      self_ty_var->ty = ETVar{next_id++, "Self"};
-      self_ty_var->span = param.span;
 
-      // Wrap in pointer: self is *Self
-      auto self_ty = make_shared<Type>();
-      self_ty->ty = TyNamed{"ptr", Pointer, {self_ty_var}};
-      self_ty->span = param.span;
+      TypeRef self_ty;
+      if (!name_prefix.empty()) {
+        // Method on a struct or union. self is *TypeName[type_args...]
+        vector<TypeRef> type_args;
+        // Use TyVars for the inherited type parameters
+        for (auto &[name, id] : inherited_type_vars) {
+          auto tyvar = make_shared<Type>();
+          tyvar->ty = TyVar{id, name};
+          tyvar->span = param.span;
+          type_args.push_back(tyvar);
+        }
+
+        // Determine if this is a struct or union
+        NamedTyKind kind = Struct;
+        if (unions.contains(name_prefix)) {
+          kind = Union;
+        }
+
+        auto self_inner = make_shared<Type>();
+        self_inner->ty = TyNamed{name_prefix, kind, type_args};
+        self_inner->span = param.span;
+
+        self_ty = make_shared<Type>();
+        self_ty->ty = TyNamed{"ptr", Pointer, {self_inner}};
+        self_ty->span = param.span;
+      } else {
+        // Standalone function with self (shouldn't happen, but ill handle it
+        // ig?) Use ETVar for inference
+        auto self_ty_var = make_shared<Type>();
+        self_ty_var->ty = ETVar{next_id++, "Self"};
+        self_ty_var->span = param.span;
+
+        self_ty = make_shared<Type>();
+        self_ty->ty = TyNamed{"ptr", Pointer, {self_ty_var}};
+        self_ty->span = param.span;
+      }
+
       arg_types.push_back(self_ty);
     } else {
       arg_types.push_back(resolve_type(*param.type));
@@ -754,7 +784,8 @@ optional<TypeRef> Typechecker::lookup_any(const string &name) {
 // Existential type variables
 TypeRef Typechecker::fresh_etvar(const string &name) {
   auto ty = make_shared<Type>();
-  ty->ty = ETVar{fresh_id(), name};
+  uint32_t id = fresh_id();
+  ty->ty = ETVar{id, name};
   ty->span = Span{};
   return ty;
 }
@@ -1464,11 +1495,11 @@ typed::TypedExpr Typechecker::check_method_call(const ast::MethodCall &call,
   auto obj = check_expr(*call.object);
   auto obj_ty = apply_solutions(obj.ty);
 
-  bool is_pointer = false;
+  // bool is_pointer = false;
   TypeRef inner_ty;
   if (auto named = std::get_if<TyNamed>(&obj_ty->ty)) {
     if (named->kind == Pointer && !named->args.empty()) {
-      is_pointer = true;
+      // is_pointer = true;
       inner_ty = named->args[0];
     }
   }
@@ -1629,7 +1660,16 @@ typed::TypedExpr Typechecker::check_method_call(const ast::MethodCall &call,
 
   string type_name;
   if (auto named = std::get_if<TyNamed>(&obj_ty->ty)) {
-    type_name = named->name;
+    if (named->kind == Pointer && !named->args.empty()) {
+      // For pointer types, get the inner type name for method lookup
+      if (auto inner_named = std::get_if<TyNamed>(&named->args[0]->ty)) {
+        type_name = inner_named->name;
+      } else {
+        throw TypeError("method call on pointer to non-named type", span);
+      }
+    } else {
+      type_name = named->name;
+    }
   } else {
     throw TypeError("method call on non-named type", span);
   }
@@ -1639,31 +1679,7 @@ typed::TypedExpr Typechecker::check_method_call(const ast::MethodCall &call,
   bool found_method = false;
   if (!functions.contains(method_name)) {
     if (!functions.contains(call.method)) {
-      // Method not found on this type; try auto-deref if we have a pointer
-      if (is_pointer) {
-        // Get the inner type name
-        if (auto inner_named = std::get_if<TyNamed>(&inner_ty->ty)) {
-          string inner_type_name = inner_named->name;
-          string inner_method_name = inner_type_name + "." + call.method;
-          if (functions.contains(inner_method_name)) {
-            // Found method on inner type, auto-deref
-            // Create dereference expression: *obj
-            auto deref_obj = make_shared<typed::TypedExpr>();
-            deref_obj->span = span;
-            deref_obj->ty = inner_ty;
-            deref_obj->value =
-                typed::UnaryExpr{span, ast::UnaryOp::Deref,
-                                 make_unique<typed::TypedExpr>(std::move(obj))};
-
-            // Now call the method on the dereferenced object
-            obj = std::move(*deref_obj);
-            obj_ty = inner_ty;
-            type_name = inner_type_name;
-            method_name = inner_method_name;
-            found_method = true;
-          }
-        }
-      }
+      // Method not found on this type
       if (!found_method) {
         throw TypeError("method not found: " + call.method + " on " + type_name,
                         span);
@@ -1705,47 +1721,8 @@ typed::TypedExpr Typechecker::check_method_call(const ast::MethodCall &call,
     }
 
     // Apply substitution to instantiate the method type
-    function<TypeRef(TypeRef)> substitute;
-    substitute = [&](TypeRef ty) -> TypeRef {
-      return std::visit(
-          [&](auto &&inner) -> TypeRef {
-            using U = std::decay_t<decltype(inner)>;
-            if constexpr (std::is_same_v<U, TyVar>) {
-              if (subst.contains(inner.id)) {
-                return subst.at(inner.id);
-              }
-              return ty;
-            } else if constexpr (std::is_same_v<U, TyNamed>) {
-              vector<TypeRef> new_args;
-              for (auto &arg : inner.args) {
-                new_args.push_back(substitute(arg));
-              }
-              auto result = make_shared<Type>();
-              result->ty = TyNamed{inner.name, inner.kind, new_args};
-              result->span = ty->span;
-              return result;
-            }
-            return ty;
-          },
-          ty->ty);
-    };
-
-    fn_ty_ref = std::visit(
-        [&](auto &&t) -> TypeRef {
-          using T = std::decay_t<decltype(t)>;
-          if constexpr (std::is_same_v<T, FnTy>) {
-            vector<TypeRef> new_args;
-            for (auto &arg : t.args) {
-              new_args.push_back(substitute(arg));
-            }
-            auto result = make_shared<Type>();
-            result->ty = FnTy{new_args, substitute(t.return_type)};
-            result->span = forall->body->span;
-            return result;
-          }
-          return forall->body;
-        },
-        forall->body->ty);
+    // Use apply_substitution which handles all type variants
+    fn_ty_ref = apply_substitution(forall->body, subst);
   } else {
     fn_ty_ref = fn_def.ty;
   }
@@ -1770,7 +1747,17 @@ typed::TypedExpr Typechecker::check_method_call(const ast::MethodCall &call,
   if (self_ptr->args.empty()) {
     throw TypeError("method self pointer has no inner type", span);
   }
-  unify(obj.ty, self_ptr->args[0], span);
+
+  // Check if obj is already a pointer
+  auto *obj_ptr = std::get_if<TyNamed>(&obj.ty->ty);
+  if (obj_ptr && obj_ptr->kind == Pointer) {
+    // obj is already a pointer, unify with self pointer directly
+    unify(obj.ty, self_param, span);
+  } else {
+    // obj is not a pointer, unify with inner type (will need to take address)
+    // For now, just unify with inner type
+    unify(obj.ty, self_ptr->args[0], span);
+  }
 
   // Check remaining args
   if (call.args.size() != fn_ty->args.size() - 1) {
@@ -2061,7 +2048,24 @@ typed::TypedExpr Typechecker::check_scope_access(const ast::ScopeAccess &sa,
   TypeRef fn_ty_ref;
 
   if (auto forall = std::get_if<ForAll>(&fn_def.ty->ty)) {
-    fn_ty_ref = instantiate(*forall);
+    // Check if explicit generic args are provided
+    if (!sa.generic_args.empty()) {
+      // Use explicit type arguments
+      map<uint32_t, TypeRef> subst;
+      for (size_t i = 0; i < sa.generic_args.size() && i < forall->vars.size();
+           i++) {
+        auto ty = resolve_type(*sa.generic_args[i]);
+        subst[forall->vars[i].second] = ty;
+      }
+      // For any remaining type params, use ETVars
+      for (size_t i = sa.generic_args.size(); i < forall->vars.size(); i++) {
+        subst[forall->vars[i].second] = fresh_etvar(forall->vars[i].first);
+      }
+      fn_ty_ref = apply_substitution(forall->body, subst);
+    } else {
+      // No explicit args, instantiate with ETVars
+      fn_ty_ref = instantiate(*forall);
+    }
   } else {
     fn_ty_ref = fn_def.ty;
   }
@@ -2383,6 +2387,22 @@ typed::TypedExpr Typechecker::check_match(const ast::MatchExpr &match,
           if (var_name == var_pat->variant) {
             if (!var_payload.empty()) {
               payload_ty = var_payload[0];
+
+              // For generic unions, substitute type vars with concrete types
+              if (auto subject_named = std::get_if<TyNamed>(&subject_ty->ty)) {
+                if (!subject_named->args.empty() && union_def->scheme) {
+                  // Build substitution map from TyVar IDs to concrete types
+                  map<uint32_t, TypeRef> subst;
+                  for (size_t i = 0; i < union_def->scheme->vars.size() &&
+                                     i < subject_named->args.size();
+                       i++) {
+                    subst[union_def->scheme->vars[i].second] =
+                        subject_named->args[i];
+                  }
+                  // Apply substitution to payload type
+                  payload_ty = apply_substitution(payload_ty, subst);
+                }
+              }
             } else {
               payload_ty = make_unit(arm.pattern.span);
             }
@@ -3156,28 +3176,70 @@ typed::TypedProgram Typechecker::check(const ast::Program &program) {
 
   // Check all declarations (collect and resolve already ran in run())
   for (auto &declaration : program.declarations) {
-    std::visit(overload{
-                   [&](const ast::FnDecl &fn) {
-                     result.declarations.push_back(
-                         typed::TypedDecl{fn.span, check_fn(fn)});
-                   },
-                   [&](const ast::StructDecl &) {
-                     // Structs processed in collect, methods checked separately
-                   },
-                   [&](const ast::UnionDecl &) {
-                     // Unions processed in collect, methods checked separately
-                   },
-                   [&](const ast::InterfaceDecl &) {},
-                   [&](const ast::ExternDecl &) {},
-                   [&](const ast::UseDecl &) {},
-                   [&](const ast::MacroDecl &) {
-                     // Macros not typechecked yet
-                   },
-                   [&](const ast::ComptimeStmt &) {
-                     // Comptime not implemented yet
-                   },
-               },
-               declaration.value);
+    std::visit(
+        overload{
+            [&](const ast::FnDecl &fn) {
+              result.declarations.push_back(
+                  typed::TypedDecl{fn.span, check_fn(fn)});
+            },
+            [&](const ast::StructDecl &s) {
+              // Add struct declaration to typed AST
+              typed::TypedStructDecl typed_struct;
+              typed_struct.span = s.span;
+              typed_struct.name = s.name;
+
+              // Build type
+              if (s.generic_params.empty()) {
+                typed_struct.ty = make_shared<Type>();
+                typed_struct.ty->ty = TyNamed{s.name, Struct, {}};
+                typed_struct.ty->span = s.span;
+              } else {
+                // Generic struct - create ForAll type
+                vector<pair<string, uint32_t>> vars;
+                vector<TypeRef> args;
+                for (size_t i = 0; i < s.generic_params.size(); i++) {
+                  vars.push_back({s.generic_params[i].name, (uint32_t)i});
+                  auto tyvar = make_shared<Type>();
+                  tyvar->ty = TyVar{(uint32_t)i, s.generic_params[i].name};
+                  tyvar->span = s.span;
+                  args.push_back(tyvar);
+                }
+                auto body = make_shared<Type>();
+                body->ty = TyNamed{s.name, Struct, args};
+                body->span = s.span;
+                auto forall = make_shared<Type>();
+                forall->ty = ForAll{vars, body};
+                forall->span = s.span;
+                typed_struct.ty = forall;
+              }
+
+              // Add fields
+              auto &def = structs.at(s.name);
+              for (auto &[fname, fty] : def.fields) {
+                typed::TypedFieldDecl field;
+                field.span = s.span;
+                field.name = fname;
+                field.ty = fty;
+                typed_struct.fields.push_back(field);
+              }
+
+              result.declarations.push_back(
+                  typed::TypedDecl{s.span, std::move(typed_struct)});
+            },
+            [&](const ast::UnionDecl &) {
+              // Unions processed in collect, methods checked separately
+            },
+            [&](const ast::InterfaceDecl &) {},
+            [&](const ast::ExternDecl &) {},
+            [&](const ast::UseDecl &) {},
+            [&](const ast::MacroDecl &) {
+              // Macros not typechecked yet
+            },
+            [&](const ast::ComptimeStmt &) {
+              // Comptime not implemented yet
+            },
+        },
+        declaration.value);
   }
 
   return result;

@@ -1,0 +1,16 @@
+struct Container[T] {
+    data: T,
+
+    fn new(val: T) -> Container[T] {
+        return Container[T] { data: val, };
+    }
+
+    fn get(self) -> T {
+        return self.data;
+    }
+}
+
+fn test() {
+    let ci = Container[i32]::new(42);
+    let val: i32 = ci.get();
+}
