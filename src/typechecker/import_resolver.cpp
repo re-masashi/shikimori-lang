@@ -10,6 +10,7 @@
 #include "parser/parser.h"
 #include "parser/tokenizer.hpp"
 #include "span.h"
+#include "typechecker/typechecker.h"
 
 namespace shikimori {
 
@@ -46,15 +47,20 @@ void ImportResolver::collect_from_file(const string &path) {
   visited_paths.insert(path);
   import_stack.push_back(path);
 
-  auto program = parse_file(path);
-  if (!program) {
+  auto result = parse_file(path);
+  if (!result.has_value()) {
     import_stack.pop_back();
-    return;
+    const auto &err = result.error();
+    if (err.kind == ImportErrorKind::FileNotFound) {
+      throw TypeError("could not find file: " + err.path, Span{});
+    } else {
+      throw TypeError(err.path + ": " + err.message, err.span, err.source);
+    }
   }
 
   resolved_paths.push_back(path);
-  programs.emplace(path, make_unique<ast::Program>(std::move(*program)));
-  collect_recursive(*program);
+  programs.emplace(path, make_unique<ast::Program>(std::move(*result)));
+  collect_recursive(*result);
 
   import_stack.pop_back();
 }
@@ -69,16 +75,20 @@ optional<string> ImportResolver::resolve_use(const ast::UseDecl &use,
   import_map[resolved] = use;
 
   if (!visited_paths.contains(resolved)) {
-    collect_from_file(resolved);
+    try {
+      collect_from_file(resolved);
+    } catch (const TypeError &e) {
+      throw TypeError(e.what(), e.span, e.source, use.span);
+    }
   }
 
   return resolved;
 }
 
-optional<ast::Program> ImportResolver::parse_file(const string &path) {
+expected<ast::Program, ImportError> ImportResolver::parse_file(const string &path) {
   ifstream file(path);
   if (!file) {
-    return nullopt;
+    return unexpected(ImportError{ImportErrorKind::FileNotFound, path, "", Span{}, ""});
   }
 
   string source((istreambuf_iterator<char>(file)), istreambuf_iterator<char>());
@@ -87,7 +97,17 @@ optional<ast::Program> ImportResolver::parse_file(const string &path) {
   vector<Token> tokens = tokenizer.tokenize();
 
   Parser parser(tokens, source, path);
-  return parser.parse();
+  auto program = parser.parse();
+
+  if (!program) {
+    const auto &errors = parser.get_errors();
+    if (!errors.empty()) {
+      return unexpected(ImportError{ImportErrorKind::ParseError, path, errors[0].message, errors[0].span, source});
+    }
+    return unexpected(ImportError{ImportErrorKind::ParseError, path, "unknown parse error", Span{}, ""});
+  }
+
+  return std::move(*program);
 }
 
 string ImportResolver::resolve_path(const string &path,
@@ -118,6 +138,9 @@ string ImportResolver::resolve_path(const string &path,
   fs::path full_path;
   if (path.starts_with("./")) {
     full_path = current_dir / path.substr(2);
+    if (!full_path.has_extension()) {
+      full_path = full_path.string() + ".shiki";
+    }
   } else if (path.starts_with("../")) {
     size_t dots = 0;
     size_t i = 0;

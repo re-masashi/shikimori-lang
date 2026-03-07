@@ -1,0 +1,15 @@
+use "./meow"
+
+struct Thingamagic {
+  count: i32,
+}
+
+fn main() {
+  meow();
+  let cat = Cat {
+    name: "cream",
+    age: 1,
+    toy: Option::some("ferret plush"),
+    thingamagic: Thingamagic { count: 1, }, 
+  };
+}

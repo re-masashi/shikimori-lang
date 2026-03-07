@@ -1,4 +1,5 @@
 // #include "ast/ast_printer.h"
+#include "color.hpp"
 #include "parser/parser.h"
 #include "parser/tokenizer.hpp"
 #include "typechecker/typechecker.h"
@@ -74,7 +75,21 @@ int main(int argc, char *argv[]) {
             auto mono_program = mono.run(typed_program);
             dump_typed_ast(mono_program);
         } catch (const TypeError &e) {
-          report_error(source, e.span, "type error", e.what());
+          if (!e.source.empty()) {
+            if (e.import_span.start != 0 || e.import_span.end != 0) {
+              report_error(source, e.import_span, "type error", "error in imported file");
+            } else {
+              cerr << Color::BOLD << Color::RED << "error" << Color::RESET << Color::BOLD
+                   << ": " << "type error" << Color::RESET << ": " << "error in imported file" << "\n";
+              if (!e.span.file.empty()) {
+                cerr << "  --> " << e.span.file.string() << "\n";
+              }
+              cerr << "\n";
+            }
+            report_error(e.source, e.span, "type error", e.what());
+          } else {
+            report_error(source, e.span, "type error", e.what());
+          }
           return 1;
         }
         return 0;

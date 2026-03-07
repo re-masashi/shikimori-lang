@@ -1,4 +1,5 @@
 #pragma once
+#include <expected>
 #include <map>
 #include <memory>
 #include <optional>
@@ -7,10 +8,21 @@
 #include <vector>
 
 #include "ast/ast_decl.hpp"
+#include "parser/parser.h"
 
 using namespace std;
 
 namespace shikimori {
+
+enum class ImportErrorKind { FileNotFound, ParseError };
+
+struct ImportError {
+  ImportErrorKind kind;
+  string path;
+  string message;
+  Span span;
+  string source;
+};
 
 class ImportResolver {
 public:
@@ -21,7 +33,7 @@ public:
   void collect(const ast::Program &program);
   optional<string> resolve_use(const ast::UseDecl &use, string file_path);
   string resolve_path(const string &path, const string &current_file);
-  optional<ast::Program> parse_file(const string &path);
+  expected<ast::Program, ImportError> parse_file(const string &path);
 
 private:
   set<string> visited_paths;

@@ -88,7 +88,10 @@ namespace shikimori {
 
 struct TypeError : runtime_error {
   Span span;
-  TypeError(const string &msg, Span span) : runtime_error(msg), span(span) {}
+  string source;
+  Span import_span;
+  TypeError(const string &msg, Span span, string source = "", Span import_span = Span{})
+      : runtime_error(msg), span(span), source(std::move(source)), import_span(import_span) {}
 };
 
 struct Typechecker {

@@ -1,0 +1,12 @@
+use "./import" (Thingamagic) 
+
+fn meow() -> i32 {
+  return 67;
+}
+
+struct Cat[T] {
+  name: string,
+  age: i32,
+  toy: Option[T],
+  thingamagic: Thingamagic,
+}
