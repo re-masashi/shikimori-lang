@@ -1,0 +1,46 @@
+extern c_puts(*u8)
+extern c_malloc(usize) -> *u8
+extern c_free(*u8)
+
+struct Range {
+    start: usize,
+    end: usize,
+}
+
+union Option[T] {
+    some: T,
+    none,
+
+    fn is_some(self) -> bool {
+        return match self {
+            some(v) => { true },
+            none => { false },
+        };
+    }
+
+    fn is_none(self) -> bool {
+        return match self {
+            none => { true },
+            _ => { false },
+        };
+    }
+}
+
+union Result[T, E] {
+    ok: T,
+    err: E,
+
+    fn is_ok(self) -> bool {
+        return match self {
+            ok(v) => { true },
+            _ => { false },
+        };
+    }
+
+    fn is_err(self) -> bool {
+        return match self {
+            err(e) => { true },
+            _ => { false },
+        };
+    }
+}

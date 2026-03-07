@@ -8,6 +8,8 @@
 #include <vector>
 
 #include "ast/typedast.h"
+#include "parser/parser.h"
+#include "parser/tokenizer.hpp"
 #include "span.h"
 #include "typechecker/import_resolver.h"
 #include "types.h"
@@ -108,8 +110,10 @@ public:
   TypeRef current_return_type = nullptr;
   string current_fn_name; // current function being checked (for where clauses)
 
+  bool builtins_loaded = false;
   bool resolved = false; // track if resolve() pass has been run
 
+  void load_builtins();
   void collect(const ast::Program &program);
   void collect_from_program(const ast::Program &program);
   void collect_from_program_filtered(const ast::Program &program,

@@ -1,4 +1,8 @@
 #include <algorithm>
+#include <expected>
+#include <filesystem>
+#include <format>
+#include <fstream>
 #include <functional>
 #include <memory>
 #include <stddef.h>
@@ -109,6 +113,56 @@ string type_to_string(const TypeRef &ty) {
         return "unknown";
       },
       ty->ty);
+}
+
+static std::string get_builtins_path() {
+  return (std::filesystem::path(__FILE__)
+              .parent_path()
+              .parent_path()
+              .parent_path() /
+          "stdlib" / "builtins.shiki")
+      .string();
+}
+
+static std::expected<std::string, std::string>
+read_file(const std::string &path) {
+  std::ifstream file(std::filesystem::path(path),
+                     std::ios::binary | std::ios::ate);
+  if (!file) {
+    return std::unexpected(std::format("Cannot open builtins file: {}", path));
+  }
+  const auto size = file.tellg();
+  file.seekg(0, std::ios::beg);
+  std::string content;
+  content.resize(static_cast<size_t>(size));
+  if (!file.read(content.data(), size)) {
+    return std::unexpected("Failed reading builtins file content");
+  }
+  return content;
+}
+
+void Typechecker::load_builtins() {
+  if (builtins_loaded)
+    return;
+
+  auto builtins_path = get_builtins_path();
+  auto content = read_file(builtins_path);
+  if (!content) {
+    throw TypeError("Failed to load builtins: " + content.error(), Span{});
+  }
+
+  Tokenizer tokenizer(*content);
+  auto tokens = tokenizer.tokenize();
+  Parser parser(tokens, *content, builtins_path);
+  auto program = parser.parse();
+  if (!program) {
+    throw TypeError("Failed to parse builtins", Span{});
+  }
+
+  collect(*program);
+  resolve();
+  builtins_loaded = true;
+  resolved = false;
 }
 
 void Typechecker::collect(const ast::Program &program) {
@@ -728,6 +782,7 @@ void Typechecker::resolve_use(const ast::UseDecl &use, string file_path) {
 }
 
 typed::TypedProgram Typechecker::run(const ast::Program &program) {
+  load_builtins();
   collect(program);
   resolve();
   return check(program);
