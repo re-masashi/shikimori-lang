@@ -9,7 +9,7 @@ fn main() {
   let cat = Cat {
     name: "cream",
     age: 1,
-    toy: Option::some("ferret plush"),
+    toy: "ferret plush",
     thingamagic: Thingamagic { count: 1, }, 
   };
 }
