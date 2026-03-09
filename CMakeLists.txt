@@ -47,6 +47,8 @@ add_executable(shikimori
   src/typechecker/typechecker.cpp
   src/typechecker/import_resolver.cpp
   src/monomorphization/monomorphizer.cpp
+  src/ir/ir_types.cpp
+  src/ir/ir.cpp
   src/error_reporter.cpp
   src/color.cpp
   src/span.cpp

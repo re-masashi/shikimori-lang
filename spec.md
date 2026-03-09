@@ -302,7 +302,11 @@ __index__
 
 ## Explicitly Out of Scope (for now)
 
-- `?` error propagation operator
+- `!!` error propagation operator
+eg: a!! // returns None or becomes X (if it was Some(X))
+- `?` and `??` debug print
+`?` prints debug info (+ line and col and file) of whatever it is postfixed after.
+`??` is `?` but more verbose.
 - Method references / bound closures
 - User-defined `comptime fn`
 - Macros with repetition / recursion
@@ -310,3 +314,69 @@ __index__
 - `distinct` types
 - Tuples
 - Type aliases
+- @attribute(something=something, orsomething=something) syntax
+ which can be accessed by comptime functions. every item can have infinite or 0 attributes (each w own args) and comptime fns can modify these or add more or remove.
+these _can_ persist across compilation stages. so hints such as inlining etc are given to the IR based on this.
+
+some features i want to add are:
+
+### @rec
+
+```
+@rec
+fn something
+```
+
+if the function canNOT be TCO-d it errors. else, it compiles. it's like a compile time guarantee that the function CAN be TCO-d
+
+### @no_bounds
+
+```
+@no_bounds
+{
+ // exprs
+}
+
+// or 
+@no_bounds
+fn something()
+
+// or 
+@no_bounds
+expr
+```
+
+disable bounds checking selectively (doable ig)
+
+### @test("test name")
+
+```
+@test("meow meow")
+fn meow() 
+
+// or 
+
+@test("mm") {
+}
+```
+
+### @private
+
+only for top level items
+hides from being imported.
+
+### @censored
+
+.to_string() conversion becomes "***"
+or maybe only for serialization
+
+### @invisible
+
+not printed.
+
+### @serde(name=something)
+
+change name during serialization.
+for structs or struct fields.
+
+
