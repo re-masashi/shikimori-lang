@@ -1,0 +1,44 @@
+// Test method lifting with methods calling other methods
+struct Math {
+    value: i32,
+
+    fn new(v: i32) -> Math {
+        return Math { value: v, };
+    }
+
+    fn double(self) {
+        self.mul(2);
+    }
+
+    fn triple(self) {
+        self.mul(3);
+    }
+
+    fn mul(self, x: i32) {
+        self.value = self.value * x;
+    }
+
+    fn add(self, x: i32) {
+        self.value = self.value + x;
+    }
+
+    fn square(self) {
+        let temp = self.value;
+        self.mul(temp);
+    }
+
+    fn get(self) -> i32 {
+        return self.value;
+    }
+}
+
+fn main() -> i32 {
+    let m = Math::new(5);
+    m.double();
+    let a = m.get();
+    m.triple();
+    let b = m.get();
+    m.square();
+    let c = m.get();
+    return a + b + c;
+}

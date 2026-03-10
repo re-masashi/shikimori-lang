@@ -1,0 +1,30 @@
+// Test basic method lifting with multiple methods
+struct Counter {
+    value: i32,
+
+    fn new(initial: i32) -> Counter {
+        return Counter { value: initial, };
+    }
+
+    fn get(self) -> i32 {
+        return self.value;
+    }
+
+    fn increment(self, amount: i32) -> i32 {
+        self.value = self.value + amount;
+        return self.value;
+    }
+
+    fn reset(self) {
+        self.value = 0;
+    }
+}
+
+fn main() -> i32 {
+    let c = Counter::new(10);
+    let a = c.get();
+    let b = c.increment(5);
+    c.reset();
+    let d = c.get();
+    return a + b + d;
+}

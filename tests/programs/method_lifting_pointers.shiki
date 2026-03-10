@@ -1,0 +1,25 @@
+// Test method lifting with pointer and slice types
+struct Buffer {
+    data: *u8,
+    len: usize,
+
+    fn new(ptr: *u8, length: usize) -> Buffer {
+        return Buffer { data: ptr, len: length, };
+    }
+
+    fn length(self) -> usize {
+        return self.len;
+    }
+
+    fn is_empty(self) -> bool {
+        return self.len == 0;
+    }
+}
+
+fn main() -> i32 {
+    let buf = Buffer::new(null, 10);
+    let len = buf.length();
+    let empty = buf.is_empty();
+
+    return if len == 10 { 1 } else { 0 } + if empty { 0 } else { 1 };
+}

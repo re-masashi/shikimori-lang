@@ -1,0 +1,62 @@
+// Test method lifting with union types
+union Option[T] {
+    some: T,
+    none,
+
+    fn new(value: T) -> Option[T] {
+        return Option[T]::some(value);
+    }
+
+    fn is_some(self) -> bool {
+        return match self {
+            some(_) => { true },
+            none    => { false },
+        };
+    }
+
+    fn is_none(self) -> bool {
+        return match self {
+            some(_) => { false },
+            none    => { true },
+        };
+    }
+}
+
+union Result[T, E] {
+    ok: T,
+    err: E,
+
+    fn ok(value: T) -> Result[T, E] {
+        return Result[T, E]::ok(value);
+    }
+
+    fn err(value: E) -> Result[T, E] {
+        return Result[T, E]::err(value);
+    }
+
+    fn is_ok(self) -> bool {
+        return match self {
+            ok(_)  => { true },
+            err(_) => { false },
+        };
+    }
+
+    fn is_err(self) -> bool {
+        return match self {
+            ok(_)  => { false },
+            err(_) => { true },
+        };
+    }
+}
+
+fn main() -> i32 {
+    let opt = Option[i32]::new(42);
+    let has_val = opt.is_some();
+    let is_empty = opt.is_none();
+
+    let res = Result[i32, string]::ok(100);
+    let ok = res.is_ok();
+    let err = res.is_err();
+
+    return if has_val { 1 } else { 0 } + if is_empty { 0 } else { 1 } + if ok { 1 } else { 0 } + if err { 0 } else { 1 };
+}

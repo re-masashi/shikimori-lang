@@ -1,0 +1,33 @@
+// Test method lifting with sequential method calls
+struct Builder {
+    value: i32,
+
+    fn new() -> Builder {
+        return Builder { value: 0, };
+    }
+
+    fn add(self, x: i32) {
+        self.value = self.value + x;
+    }
+
+    fn mul(self, x: i32) {
+        self.value = self.value * x;
+    }
+
+    fn sub(self, x: i32) {
+        self.value = self.value - x;
+    }
+
+    fn build(self) -> i32 {
+        return self.value;
+    }
+}
+
+fn main() -> i32 {
+    let b = Builder::new();
+    b.add(10);
+    b.mul(2);
+    b.sub(5);
+    let result = b.build();
+    return result;
+}

@@ -1,0 +1,45 @@
+// Test method lifting with generic struct
+struct Container[T] {
+    data: T,
+
+    fn new(value: T) -> Container[T] {
+        return Container[T] { data: value, };
+    }
+
+    fn get(self) -> T {
+        return self.data;
+    }
+
+    fn set(self, value: T) {
+        self.data = value;
+    }
+}
+
+struct Pair[A, B] {
+    first: A,
+    second: B,
+
+    fn new(a: A, b: B) -> Pair[A, B] {
+        return Pair[A, B] { first: a, second: b, };
+    }
+
+    fn get_first(self) -> A {
+        return self.first;
+    }
+
+    fn get_second(self) -> B {
+        return self.second;
+    }
+}
+
+fn main() -> i32 {
+    let c1 = Container[i32]::new(42);
+    let v1 = c1.get();
+    c1.set(100);
+    let v2 = c1.get();
+
+    let p = Pair[i32, f32]::new(10, 3.14);
+    let f = p.get_first();
+
+    return v1 + v2 + f;
+}
