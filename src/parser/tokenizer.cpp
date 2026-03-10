@@ -1,5 +1,6 @@
 #include "tokenizer.hpp"
 #include "color.hpp"
+#include "utils.h"
 #include <cctype>
 #include <unordered_map>
 
@@ -42,6 +43,7 @@ Tokenizer::Tokenizer(string_view source)
     : source(source), position(0), line(1), column(1) {}
 
 vector<Token> Tokenizer::tokenize() {
+  TRACE_SCOPE();
   vector<Token> tokens;
   while (!is_at_end()) {
     Token token = next_token();

@@ -9,12 +9,14 @@
 
 #include "parser/tokenizer.hpp"
 #include "span.h"
+#include "utils.h"
 
 using namespace std;
 
 namespace shikimori {
 
 optional<ast::Program> Parser::parse() {
+  TRACE_SCOPE();
   ast::Program program;
   size_t start = current_pos;
 

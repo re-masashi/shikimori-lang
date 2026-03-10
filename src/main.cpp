@@ -6,6 +6,7 @@
 #include "ast/typed_ast_printer.h"
 #include "monomorphization/monomorphizer.h"
 #include "error_reporter.h"
+#include "utils.h"
 #include <expected>
 #include <filesystem>
 #include <format>
@@ -20,6 +21,7 @@ using namespace shikimori;
 using namespace std;
 
 [[nodiscard]] expected<string, string> read_source(string_view path) {
+  TRACE_SCOPE();
   ifstream file(filesystem::path(path), ios::binary | ios::ate);
 
   if (!file) {
@@ -40,6 +42,7 @@ using namespace std;
 }
 
 int main(int argc, char *argv[]) {
+  TRACE_SCOPE();
   const vector<string_view> args(argv, argv + argc);
 
   if (args.size() < 2) {
@@ -53,6 +56,7 @@ int main(int argc, char *argv[]) {
 
   return read_source(source_file)
       .and_then([&filepath](string source) -> expected<int, string> {
+        TRACE_SCOPE();
         Tokenizer tokenizer(source);
         vector<Token> tokens = tokenizer.tokenize();
 
@@ -68,12 +72,13 @@ int main(int argc, char *argv[]) {
 
         // dump_ast(*program);
         try {
+          TRACE_SCOPE();
           Typechecker tc;
           auto typed_program = tc.run(*program);
 
-            Monomorphizer mono(tc);
-            auto mono_program = mono.run(typed_program);
-            dump_typed_ast(mono_program);
+          Monomorphizer mono(tc);
+          auto mono_program = mono.run(typed_program);
+          dump_typed_ast(mono_program);
         } catch (const TypeError &e) {
           if (!e.source.empty()) {
             if (e.import_span.start != 0 || e.import_span.end != 0) {

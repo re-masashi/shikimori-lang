@@ -11,10 +11,12 @@
 #include "parser/tokenizer.hpp"
 #include "span.h"
 #include "typechecker/typechecker.h"
+#include "utils.h"
 
 namespace shikimori {
 
 void ImportResolver::collect(const ast::Program &program) {
+  TRACE_SCOPE();
   visited_paths.clear();
   resolved_paths.clear();
   collect_recursive(program);
@@ -29,6 +31,7 @@ void ImportResolver::collect_recursive(const ast::Program &program) {
 }
 
 void ImportResolver::collect_from_file(const string &path) {
+  TRACE_SCOPE();
   for (const auto &visited : import_stack) {
     if (visited == path) {
       std::cerr << "Warning: circular import detected" << std::endl;

@@ -2,6 +2,8 @@
 #include <algorithm>
 #include <functional>
 
+#include "utils.h"
+
 namespace shikimori {
 
 bool InstantiationKey::operator==(const InstantiationKey &other) const {
@@ -1194,6 +1196,7 @@ Monomorphizer::extract_type_args(const ForAll &forall,
 }
 
 typed::TypedProgram Monomorphizer::run(const typed::TypedProgram &program) {
+  TRACE_SCOPE();
   // Phase 0a: Resolve ETVars from context (iterate until fixed point)
   size_t prev_resolutions = 0;
   size_t max_iterations = 100; // Prevent infinite loops

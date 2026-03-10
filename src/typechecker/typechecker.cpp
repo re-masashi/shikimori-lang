@@ -142,6 +142,7 @@ read_file(const std::string &path) {
 }
 
 void Typechecker::load_builtins() {
+  TRACE_SCOPE();
   if (builtins_loaded)
     return;
 
@@ -166,6 +167,7 @@ void Typechecker::load_builtins() {
 }
 
 void Typechecker::collect(const ast::Program &program) {
+  TRACE_SCOPE();
   import_resolver.collect(program);
 
   for (auto &[path, prog] : import_resolver.programs) {
@@ -782,6 +784,7 @@ void Typechecker::resolve_use(const ast::UseDecl &use, string file_path) {
 }
 
 typed::TypedProgram Typechecker::run(const ast::Program &program) {
+  TRACE_SCOPE();
   load_builtins();
   collect(program);
   resolve();
